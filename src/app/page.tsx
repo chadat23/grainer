@@ -57,8 +57,13 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen">
-      <GCodeViewer paths={paths} />
+    <main className="flex h-screen w-full bg-gray-900 text-white">
+      <div className="w-1/3">
+        {/* Controls will go here */}
+      </div>
+      <div className="w-2/3 h-full">
+        <GCodeViewer paths={paths} />
+      </div>
     </main>
   );
 }

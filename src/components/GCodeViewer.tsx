@@ -18,8 +18,11 @@ interface Path {
 
 interface GCodeViewerProps {
   paths: Path[];
+  width?: number;
+  height?: number;
 }
 
+//export default function GCodeViewer({ paths, width, height }: GCodeViewerProps) {
 export default function GCodeViewer({ paths }: GCodeViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -55,11 +58,13 @@ export default function GCodeViewer({ paths }: GCodeViewerProps) {
 
     // Add ground plane
     const planeGeometry = new THREE.PlaneGeometry(gridSize, gridSize);
-    const planeMaterial = new THREE.MeshPhongMaterial({ 
+    const planeMaterial = new THREE.MeshStandardMaterial({ 
       color: 0x333333,
       side: THREE.DoubleSide,
       transparent: true,
-      opacity: 0.5
+      opacity: 0.5,
+      roughness: 0.8,
+      metalness: 0.3
     });
     const groundPlane = new THREE.Mesh(planeGeometry, planeMaterial);
     groundPlane.rotation.x = -Math.PI / 2;
@@ -72,72 +77,100 @@ export default function GCodeViewer({ paths }: GCodeViewerProps) {
     // Camera setup
     const camera = new THREE.PerspectiveCamera(
       fov,
-      window.innerWidth / window.innerHeight,
+      containerRef.current.clientWidth / containerRef.current.clientHeight,
+      //(width || window.innerWidth) / (height || window.innerHeight),
       0.1,
       cameraZ * 4
     );
     camera.position.set(cameraZ, cameraZ, cameraZ);
-    //camera.lookAt(center);
     camera.lookAt(new THREE.Vector3(0, 0, 0));
 
     // Renderer setup
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     containerRef.current.appendChild(renderer.domElement);
 
     // Controls setup
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = false; // Remove inertia
-    controls.dampingFactor = 0; // Ensure no damping
-    controls.rotateSpeed = 1.0; // Adjust rotation speed
-    //controls.target.copy(center);
+    controls.enableDamping = false;
+    controls.dampingFactor = 0;
+    controls.rotateSpeed = 1.0;
     controls.target.set(0, 0, 0);
     controls.minDistance = maxDim * 0.01;
     controls.maxDistance = maxDim * 2;
 
-    // Create tubes for each path
-    const tubeRadius = 0.2;
-    const tubeMaterial = new THREE.MeshPhongMaterial({ 
-      color: 0xD2B48C, // Tan color
-      shininess: 30,
-      specular: 0x444444
+    // Create rectangles for each path
+    const pathWidth = 0.4; // Width of the rectangle
+    const pathHeight = 0.2; // Height of the rectangle
+    const pathMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0xDEB887, // Tan color
+      roughness: 0.7,
+      metalness: 0.2,
+      side: THREE.DoubleSide
     });
 
     // Add ambient light
-    const ambientLight = new THREE.AmbientLight(0x404040);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     scene.add(ambientLight);
 
-    // Add directional light
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight.position.set(1, 1, 1);
-    scene.add(directionalLight);
+    // Add directional lights from multiple angles
+    const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight1.position.set(1, 1, 1);
+    directionalLight1.castShadow = true;
+    scene.add(directionalLight1);
+
+    const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
+    directionalLight2.position.set(-1, 0.5, -1);
+    directionalLight2.castShadow = true;
+    scene.add(directionalLight2);
+
+    const directionalLight3 = new THREE.DirectionalLight(0xffffff, 0.3);
+    directionalLight3.position.set(0, -1, 0);
+    directionalLight3.castShadow = true;
+    scene.add(directionalLight3);
 
     paths.forEach((path) => {
-      const points = [
-        new THREE.Vector3(path.start.x - 128, path.start.z, -(path.start.y - 128)),
-        new THREE.Vector3(path.end.x - 128, path.end.z, -(path.end.y - 128))
-      ];
+      const start = new THREE.Vector3(path.start.x - 128, path.start.z, -(path.start.y - 128));
+      const end = new THREE.Vector3(path.end.x - 128, path.end.z, -(path.end.y - 128));
       
-      // Create a curve from the points
-      const curve = new THREE.CatmullRomCurve3(points);
-      
-      // Create tube geometry
-      const tubeGeometry = new THREE.TubeGeometry(curve, 1, tubeRadius, 8, false);
+      // Calculate the direction and length of the path
+      const direction = new THREE.Vector3().subVectors(end, start);
+      const length = direction.length();
+      direction.normalize();
+
+      // Create a box geometry
+      const geometry = new THREE.BoxGeometry(length, pathHeight, pathWidth);
       
       // Create mesh
-      const tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
-      scene.add(tube);
+      const box = new THREE.Mesh(geometry, pathMaterial);
+      box.castShadow = true;
+      box.receiveShadow = true;
+      
+      // Position the box at the midpoint
+      box.position.copy(start).add(end).multiplyScalar(0.5);
+      
+      // Rotate the box to align with the path
+      box.lookAt(end);
+      box.rotateY(Math.PI / 2); // Align the length with the path
+      
+      scene.add(box);
     });
 
     // Handle window resize
-    const handleResize = () => {
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-      camera.aspect = width / height;
-      camera.updateProjectionMatrix();
-      renderer.setSize(width, height);
-    };
-    window.addEventListener('resize', handleResize);
+    const resizeObserver = new ResizeObserver(entries => {
+      const entry = entries[0];
+      if (entry) {
+        const { width, height } = entry.contentRect;
+        // Update renderer and camera based on the container's new size
+        renderer.setSize(width, height);
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+      }
+    });
+
+    // Tell the observer to watch our specific container element
+    resizeObserver.observe(containerRef.current);
 
     // Animation loop
     const animate = () => {
@@ -149,11 +182,13 @@ export default function GCodeViewer({ paths }: GCodeViewerProps) {
 
     // Cleanup
     return () => {
-      window.removeEventListener('resize', handleResize);
+      //window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
       containerRef.current?.removeChild(renderer.domElement);
       scene.clear();
     };
+  //}, [paths, width, height]);
   }, [paths]);
 
-  return <div ref={containerRef} style={{ width: '100vw', height: '100vh' }} />;
+  return <div ref={containerRef} className="w-full h-full" />;
 } 

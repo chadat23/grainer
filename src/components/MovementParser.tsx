@@ -18,9 +18,7 @@ interface Path {
 
 export default function MovementParser({ gcode }: { gcode: string }): Path[] {
   try {
-    console.log('MovementParser received gcode:', gcode.length, 'characters');
     const parsedGCode = parseGCode(gcode);
-    console.log('Parsed G-code commands:', parsedGCode.length);
 
     const currentPosition: Point = { x: 0, y: 0, z: 0, e: 0 };
     const paths: Path[] = [];
@@ -46,7 +44,6 @@ export default function MovementParser({ gcode }: { gcode: string }): Path[] {
       }
     });
 
-    console.log('Generated paths:', paths.length);
     return paths;
   } catch (err) {
     console.error('Error in MovementParser:', err);

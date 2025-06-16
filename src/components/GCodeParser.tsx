@@ -55,7 +55,7 @@ export default function GCodeParser() {
         const content = await response.text();
         const parsed = parseGCode(content);
         setParsedGCode(parsed);
-        console.log('Parsed G-code:', parsed);
+        //console.log('Parsed G-code:', parsed);
       } catch (error) {
         console.error('Error reading G-code file:', error);
       }
