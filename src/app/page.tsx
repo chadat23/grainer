@@ -16,6 +16,9 @@ interface Path {
   end: Point;
 }
 
+const cameraPoint: Point = { x: 150, y: 150, z: 150, e: 0 };
+const lookAtPoint: Point = { x: 0, y: 0, z: 0, e: 0 };
+
 export default function Home() {
   const [paths, setPaths] = useState<Path[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +26,7 @@ export default function Home() {
   const [accentColor, setAccentColor] = useState('#A52A2A'); // Default tan color
 
   useEffect(() => {
+    console.log("page useEffect called");
     const fetchGCode = async () => {
       try {
         const response = await fetch('/api/gcode');
@@ -93,7 +97,7 @@ export default function Home() {
         </div>
       </div>
       <div className="w-2/3 h-full">
-        <GCodeViewer paths={paths} baseColor={baseColor} accentColor={accentColor}/>
+        <GCodeViewer paths={paths} baseColor={baseColor} accentColor={accentColor} cameraPoint={cameraPoint} lookAtPoint={lookAtPoint}/>
       </div>
     </main>
   );

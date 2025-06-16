@@ -20,13 +20,21 @@ interface GCodeViewerProps {
   paths: Path[];
   baseColor: string;
   accentColor: string;
+  cameraPoint: Point;
+  lookAtPoint: Point;
 }
 
-export default function GCodeViewer({ paths, baseColor, accentColor }: GCodeViewerProps) {
-//export default function GCodeViewer({ paths }: GCodeViewerProps) {
+export default function GCodeViewer({ paths, baseColor, accentColor, cameraPoint, lookAtPoint }: GCodeViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
+  const pathMeshesRef = useRef<THREE.Mesh[]>([]);
 
+  // Effect for initial setup of scene, camer, renderer, and controls
   useEffect(() => {
+    console.log("GCodeViewer useEffect called");
     if (!containerRef.current) {
       console.log('Container ref not available');
       return;
@@ -35,6 +43,7 @@ export default function GCodeViewer({ paths, baseColor, accentColor }: GCodeView
     // Scene setup
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x1a1a1a);
+    sceneRef.current = scene;
 
     // Calculate bounds
     const bounds = new THREE.Box3();
@@ -42,7 +51,7 @@ export default function GCodeViewer({ paths, baseColor, accentColor }: GCodeView
       bounds.expandByPoint(new THREE.Vector3(path.start.x, path.start.y, path.start.z));
       bounds.expandByPoint(new THREE.Vector3(path.end.x, path.end.y, path.end.z));
     });
-    const center = bounds.getCenter(new THREE.Vector3());
+    //const center = bounds.getCenter(new THREE.Vector3());
     const size = bounds.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
 
@@ -78,18 +87,20 @@ export default function GCodeViewer({ paths, baseColor, accentColor }: GCodeView
     const camera = new THREE.PerspectiveCamera(
       fov,
       containerRef.current.clientWidth / containerRef.current.clientHeight,
-      //(width || window.innerWidth) / (height || window.innerHeight),
       0.1,
       cameraZ * 4
     );
-    camera.position.set(cameraZ, cameraZ, cameraZ);
-    camera.lookAt(new THREE.Vector3(0, 0, 0));
+    camera.position.set(cameraPoint.x, cameraPoint.y, cameraPoint.z);
+    camera.lookAt(new THREE.Vector3(lookAtPoint.x, lookAtPoint.y, lookAtPoint.z));
+    cameraRef.current = camera;
 
     // Renderer setup
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
     containerRef.current.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
 
     // Controls setup
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -120,18 +131,66 @@ export default function GCodeViewer({ paths, baseColor, accentColor }: GCodeView
     directionalLight3.castShadow = true;
     scene.add(directionalLight3);
 
+    // Animation loop
+    const animate = () => {
+      if (!rendererRef.current || !cameraRef.current || !sceneRef.current) return;
+      requestAnimationFrame(animate);
+      controlsRef.current?.update();
+      rendererRef.current.render(sceneRef.current, cameraRef.current);
+    };
+    animate();
+
+    // Handle window resize
+    const resizeObserver = new ResizeObserver(entries => {
+      const entry = entries[0];
+      if (entry && rendererRef.current && cameraRef.current) {
+        const { width, height } = entry.contentRect;
+        rendererRef.current?.setSize(width, height);
+        cameraRef.current.aspect = width / height;
+        cameraRef.current.updateProjectionMatrix();
+      }
+    });
+    resizeObserver.observe(containerRef.current);
+
+    // Cleanup for initial setup
+    return () => {
+      console.log('GCodeViewer initial setup cleanup called');
+      resizeObserver.disconnect();
+      if (rendererRef.current && containerRef.current) {
+        containerRef.current.removeChild(rendererRef.current.domElement);
+        rendererRef.current.dispose();
+      }
+      if (controlsRef.current) {
+        controlsRef.current.dispose();
+      }
+      if (sceneRef.current) {
+        sceneRef.current.clear();
+      }
+    };
+  }, [paths, cameraPoint, lookAtPoint]); // Re-run only when paths or initial camera points change
+
+  // Effect for creating and updating the path geometries (when paths, baseColor, accentColor hange)
+  useEffect(() => {
+    console.log("GCodeViewer paths/color update useEffect called");
+    if (!sceneRef.current) {
+      console.log('Scene ref not initialized for path/color update');
+      return;
+    }
+
+    // Remove old path methses from scene
+    pathMeshesRef.current.forEach(mesh => {
+      sceneRef.current?.remove(mesh);
+      mesh.geometry.dispose();
+      (mesh.material as THREE.Material).dispose();
+    });
+    pathMeshesRef.current = [];
+
     // Create rectangles for each path
     const pathWidth = 0.4; // Width of the rectangle
     const pathHeight = 0.2; // Height of the rectangle
     const roughness = 0.7;
     const metalness = 0.2;
     const side = THREE.DoubleSide;
-    //const pathMaterial = new THREE.MeshStandardMaterial({ 
-    //  color: baseColor, // Tan color
-    //  roughness: roughness,
-    //  metalness: 0.2,
-    //  side: THREE.DoubleSide
-    //});
 
     // Calculate the min and max Z values
     var minZ: number | undefined = undefined;
@@ -157,8 +216,6 @@ export default function GCodeViewer({ paths, baseColor, accentColor }: GCodeView
     paths.forEach((path) => {
       const start = new THREE.Vector3(path.start.x, path.start.y, path.start.z);
       const end = new THREE.Vector3(path.end.x, path.end.y, path.end.z);
-      //const start = new THREE.Vector3(path.start.x - 128, path.start.z, -(path.start.y - 128));
-      //const end = new THREE.Vector3(path.end.x - 128, path.end.z, -(path.end.y - 128));
       
       // Calculate the direction and length of the path
       const direction = new THREE.Vector3().subVectors(end, start);
@@ -171,9 +228,6 @@ export default function GCodeViewer({ paths, baseColor, accentColor }: GCodeView
       // Create a material
       const relativeZ = (path.start.z - finalMinZ) / (finalMaxZ - finalMinZ);
       const color = interpolateColor(baseColorInt, accentColorInt, relativeZ);
-      console.log("color: ", color);
-      //console.log("color: ", color);
-      //console.log("finalMinZ: {0}, finalMaxZ: {1}, currentZ: {2}, relativeZ: {3}", finalMinZ, finalMaxZ, path.start.z, relativeZ);
       const pathMaterial = new THREE.MeshStandardMaterial({ 
         color: new THREE.Color(color), // Tan color
         roughness: roughness,
@@ -193,41 +247,10 @@ export default function GCodeViewer({ paths, baseColor, accentColor }: GCodeView
       box.lookAt(end);
       box.rotateY(Math.PI / 2); // Align the length with the path
       
-      scene.add(box);
+      sceneRef.current!.add(box);
+      pathMeshesRef.current.push(box);
     });
-
-    // Handle window resize
-    const resizeObserver = new ResizeObserver(entries => {
-      const entry = entries[0];
-      if (entry) {
-        const { width, height } = entry.contentRect;
-        // Update renderer and camera based on the container's new size
-        renderer.setSize(width, height);
-        camera.aspect = width / height;
-        camera.updateProjectionMatrix();
-      }
-    });
-
-    // Tell the observer to watch our specific container element
-    resizeObserver.observe(containerRef.current);
-
-    // Animation loop
-    const animate = () => {
-      requestAnimationFrame(animate);
-      controls.update();
-      renderer.render(scene, camera);
-    };
-    animate();
-
-    // Cleanup
-    return () => {
-      //window.removeEventListener('resize', handleResize);
-      resizeObserver.disconnect();
-      containerRef.current?.removeChild(renderer.domElement);
-      scene.clear();
-    };
-  //}, [paths, width, height]);
-  }, [paths]);
+  }, [paths, baseColor, accentColor, cameraPoint, lookAtPoint]);
 
   return <div ref={containerRef} className="w-full h-full" />;
 }
