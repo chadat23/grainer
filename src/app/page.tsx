@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { parseGCode } from '@/components/GCodeParser';
 import GCodeViewer from '@/components/GCodeViewer';
+import MovementParser from '@/components/MovementParser';
 
 interface Point {
   x: number;
@@ -23,7 +23,6 @@ export default function Home() {
   useEffect(() => {
     const fetchGCode = async () => {
       try {
-        console.log('Fetching G-code file...');
         const response = await fetch('/api/gcode');
         
         if (!response.ok) {
@@ -32,41 +31,7 @@ export default function Home() {
         }
         
         const text = await response.text();
-        console.log('G-code file loaded successfully, length:', text.length);
-        console.log('First 200 characters of G-code:', text.substring(0, 200));
-        
-        // Parse G-code and generate paths
-        const commands = parseGCode(text);
-        console.log('Parsed commands:', commands.length);
-        console.log('First few commands:', commands.slice(0, 5));
-
-        const currentPosition: Point = { x: 0, y: 0, z: 0, e: 0 };
-        const newPaths: Path[] = [];
-
-        commands.forEach((command, index) => {
-          if (command.type === 'G0' || command.type === 'G1') {
-            const start: Point = { ...currentPosition };
-            
-            // Update position based on command parameters
-            if (command.x !== undefined) currentPosition.x = command.x;
-            if (command.y !== undefined) currentPosition.y = command.y;
-            if (command.z !== undefined) currentPosition.z = command.z;
-            if (command.e !== undefined) currentPosition.e = command.e;
-
-            const end: Point = { ...currentPosition };
-            newPaths.push({ start, end });
-
-            if (index < 5) {
-              console.log(`Path ${index}:`, { start, end });
-            }
-          }
-        });
-
-        console.log('Generated paths:', newPaths.length);
-        if (newPaths.length > 0) {
-          console.log('First path:', newPaths[0]);
-          console.log('Last path:', newPaths[newPaths.length - 1]);
-        }
+        const newPaths = MovementParser({ gcode: text });
         setPaths(newPaths);
       } catch (err) {
         console.error('Error loading G-code:', err);

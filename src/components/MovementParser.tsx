@@ -26,17 +26,21 @@ export default function MovementParser({ gcode }: { gcode: string }): Path[] {
     const paths: Path[] = [];
 
     parsedGCode.forEach((command) => {
-      if (command.command === 'G0' || command.command === 'G1') {
+      if (command.type === 'G0' || command.type === 'G1') {
         const start: Point = { ...currentPosition };
         
         // Update position based on command parameters
-        if (command.parameters.X !== undefined) currentPosition.x = command.parameters.X;
-        if (command.parameters.Y !== undefined) currentPosition.y = command.parameters.Y;
-        if (command.parameters.Z !== undefined) currentPosition.z = command.parameters.Z;
-        if (command.parameters.E !== undefined) currentPosition.e = command.parameters.E;
+        if (command.x !== undefined) currentPosition.x = command.x;
+        if (command.y !== undefined) currentPosition.y = command.y;
+        if (command.z !== undefined) currentPosition.z = command.z;
+        if (command.e !== undefined) {
+            currentPosition.e = command.e;
+        } else {
+            currentPosition.e = 0;
+        }
 
         const end: Point = { ...currentPosition };
-        if (command.parameters.E !== undefined && command.parameters.E > 0) {
+        if (command.e !== undefined && command.e > 0) {
           paths.push({ start, end });
         }
       }
@@ -48,5 +52,4 @@ export default function MovementParser({ gcode }: { gcode: string }): Path[] {
     console.error('Error in MovementParser:', err);
     throw err;
   }
-}
 }
