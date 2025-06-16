@@ -19,6 +19,8 @@ interface Path {
 export default function Home() {
   const [paths, setPaths] = useState<Path[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [baseColor, setBaseColor] = useState('#DEB887'); // Default tan color
+  const [accentColor, setAccentColor] = useState('#A52A2A'); // Default tan color
 
   useEffect(() => {
     const fetchGCode = async () => {
@@ -58,11 +60,40 @@ export default function Home() {
 
   return (
     <main className="flex h-screen w-full bg-gray-900 text-white">
-      <div className="w-1/3">
-        {/* Controls will go here */}
+      <div className="w-1/3 p-6 space-y-6">
+        <div className="space-y-2">
+          <label htmlFor="baseColor" className="block text-sm font-medium text-gray-300">
+            Base Color
+          </label>
+          <div className="flex items-center space-x-3">
+            <input
+              type="color"
+              id="baseColor"
+              value={baseColor}
+              onChange={(e) => setBaseColor(e.target.value)}
+              className="h-10 w-20 rounded cursor-pointer"
+            />
+            <span className="text-sm text-gray-400">{baseColor}</span>
+          </div>
+        </div>
+         <div className="space-y-2">
+          <label htmlFor="accentColor" className="block text-sm font-medium text-gray-300">
+            Accent Color
+          </label>
+          <div className="flex items-center space-x-3">
+            <input
+              type="color"
+              id="accentColor"
+              value={accentColor}
+              onChange={(e) => setAccentColor(e.target.value)}
+              className="h-10 w-20 rounded cursor-pointer"
+            />
+            <span className="text-sm text-gray-400">{accentColor}</span>
+          </div>
+        </div>
       </div>
       <div className="w-2/3 h-full">
-        <GCodeViewer paths={paths} />
+        <GCodeViewer paths={paths} baseColor={baseColor} accentColor={accentColor}/>
       </div>
     </main>
   );

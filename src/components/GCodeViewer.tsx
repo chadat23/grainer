@@ -18,12 +18,12 @@ interface Path {
 
 interface GCodeViewerProps {
   paths: Path[];
-  width?: number;
-  height?: number;
+  baseColor: string;
+  accentColor: string;
 }
 
-//export default function GCodeViewer({ paths, width, height }: GCodeViewerProps) {
-export default function GCodeViewer({ paths }: GCodeViewerProps) {
+export default function GCodeViewer({ paths, baseColor, accentColor }: GCodeViewerProps) {
+//export default function GCodeViewer({ paths }: GCodeViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -100,16 +100,6 @@ export default function GCodeViewer({ paths }: GCodeViewerProps) {
     controls.minDistance = maxDim * 0.01;
     controls.maxDistance = maxDim * 2;
 
-    // Create rectangles for each path
-    const pathWidth = 0.4; // Width of the rectangle
-    const pathHeight = 0.2; // Height of the rectangle
-    const pathMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0xDEB887, // Tan color
-      roughness: 0.7,
-      metalness: 0.2,
-      side: THREE.DoubleSide
-    });
-
     // Add ambient light
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     scene.add(ambientLight);
@@ -130,9 +120,45 @@ export default function GCodeViewer({ paths }: GCodeViewerProps) {
     directionalLight3.castShadow = true;
     scene.add(directionalLight3);
 
+    // Create rectangles for each path
+    const pathWidth = 0.4; // Width of the rectangle
+    const pathHeight = 0.2; // Height of the rectangle
+    const roughness = 0.7;
+    const metalness = 0.2;
+    const side = THREE.DoubleSide;
+    //const pathMaterial = new THREE.MeshStandardMaterial({ 
+    //  color: baseColor, // Tan color
+    //  roughness: roughness,
+    //  metalness: 0.2,
+    //  side: THREE.DoubleSide
+    //});
+
+    // Calculate the min and max Z values
+    var minZ: number | undefined = undefined;
+    var maxZ: number | undefined = undefined;
     paths.forEach((path) => {
-      const start = new THREE.Vector3(path.start.x - 128, path.start.z, -(path.start.y - 128));
-      const end = new THREE.Vector3(path.end.x - 128, path.end.z, -(path.end.y - 128));
+      if (minZ === undefined || path.start.z < minZ) {
+        minZ = path.start.z;
+      }
+      if (maxZ === undefined || path.start.z > maxZ) {
+        maxZ = path.start.z;
+      }
+    });
+    if (minZ === undefined || maxZ === undefined) {
+      minZ = 0;
+      maxZ = 1;
+    }
+    const finalMinZ = minZ!;
+    const finalMaxZ = maxZ!;
+
+    const baseColorInt = parseInt(baseColor.slice(1), 16);
+    const accentColorInt = parseInt(accentColor.slice(1), 16);
+
+    paths.forEach((path) => {
+      const start = new THREE.Vector3(path.start.x, path.start.y, path.start.z);
+      const end = new THREE.Vector3(path.end.x, path.end.y, path.end.z);
+      //const start = new THREE.Vector3(path.start.x - 128, path.start.z, -(path.start.y - 128));
+      //const end = new THREE.Vector3(path.end.x - 128, path.end.z, -(path.end.y - 128));
       
       // Calculate the direction and length of the path
       const direction = new THREE.Vector3().subVectors(end, start);
@@ -141,6 +167,19 @@ export default function GCodeViewer({ paths }: GCodeViewerProps) {
 
       // Create a box geometry
       const geometry = new THREE.BoxGeometry(length, pathHeight, pathWidth);
+
+      // Create a material
+      const relativeZ = (path.start.z - finalMinZ) / (finalMaxZ - finalMinZ);
+      const color = interpolateColor(baseColorInt, accentColorInt, relativeZ);
+      console.log("color: ", color);
+      //console.log("color: ", color);
+      //console.log("finalMinZ: {0}, finalMaxZ: {1}, currentZ: {2}, relativeZ: {3}", finalMinZ, finalMaxZ, path.start.z, relativeZ);
+      const pathMaterial = new THREE.MeshStandardMaterial({ 
+        color: new THREE.Color(color), // Tan color
+        roughness: roughness,
+        metalness: metalness,
+        side: side
+      });
       
       // Create mesh
       const box = new THREE.Mesh(geometry, pathMaterial);
@@ -191,4 +230,18 @@ export default function GCodeViewer({ paths }: GCodeViewerProps) {
   }, [paths]);
 
   return <div ref={containerRef} className="w-full h-full" />;
-} 
+}
+
+// interpolate between two colors and return a hex color
+function interpolateColor(color1: number, color2: number, ratio: number): number {
+  const r1 = (color1 >> 16) & 0xFF;
+  const g1 = (color1 >> 8) & 0xFF;
+  const b1 = color1 & 0xFF;
+  const r2 = (color2 >> 16) & 0xFF;
+  const g2 = (color2 >> 8) & 0xFF;
+  const b2 = color2 & 0xFF;
+  const r = r1 + (r2 - r1) * ratio;
+  const g = g1 + (g2 - g1) * ratio;
+  const b = b1 + (b2 - b1) * ratio;
+  return (r << 16) | (g << 8) | b;
+}
