@@ -51,7 +51,6 @@ export default function GCodeViewer({ paths, baseColor, accentColor, cameraPoint
       bounds.expandByPoint(new THREE.Vector3(path.start.x, path.start.y, path.start.z));
       bounds.expandByPoint(new THREE.Vector3(path.end.x, path.end.y, path.end.z));
     });
-    //const center = bounds.getCenter(new THREE.Vector3());
     const size = bounds.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
 
