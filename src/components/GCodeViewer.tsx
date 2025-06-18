@@ -22,9 +22,14 @@ interface GCodeViewerProps {
   accentColor: string;
   cameraPoint: Point;
   lookAtPoint: Point;
+  accentSliders: {
+    accentNumb: number;
+    accentStart: number;
+    accentEnd: number;
+  }[];
 }
 
-export default function GCodeViewer({ paths, baseColor, accentColor, cameraPoint, lookAtPoint }: GCodeViewerProps) {
+export default function GCodeViewer({ paths, baseColor, accentColor, cameraPoint, lookAtPoint, accentSliders }: GCodeViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -212,6 +217,11 @@ export default function GCodeViewer({ paths, baseColor, accentColor, cameraPoint
     const baseColorInt = parseInt(baseColor.slice(1), 16);
     const accentColorInt = parseInt(accentColor.slice(1), 16);
 
+    var accentIndex = 0;
+    var color = baseColorInt;
+
+    console.log("accentSliders", accentSliders);
+
     paths.forEach((path) => {
       const start = new THREE.Vector3(path.start.x, path.start.y, path.start.z);
       const end = new THREE.Vector3(path.end.x, path.end.y, path.end.z);
@@ -225,8 +235,17 @@ export default function GCodeViewer({ paths, baseColor, accentColor, cameraPoint
       const geometry = new THREE.BoxGeometry(length, pathHeight, pathWidth);
 
       // Create a material
-      const relativeZ = (path.start.z - finalMinZ) / (finalMaxZ - finalMinZ);
-      const color = interpolateColor(baseColorInt, accentColorInt, relativeZ);
+      //const relativeZ = (path.start.z - finalMinZ) / (finalMaxZ - finalMinZ);
+      //const color = interpolateColor(baseColorInt, accentColorInt, relativeZ);
+      //console.log("accentIndex", accentIndex);
+      if (accentIndex < accentSliders.length) {
+        if (path.start.z >= accentSliders[accentIndex].accentStart && path.start.z <= accentSliders[accentIndex].accentEnd) {
+          color = accentColorInt;
+        } else if (color === accentColorInt) {
+          accentIndex++;
+          color = baseColorInt;
+        }
+      }
       const pathMaterial = new THREE.MeshStandardMaterial({ 
         color: new THREE.Color(color), // Tan color
         roughness: roughness,
@@ -249,7 +268,7 @@ export default function GCodeViewer({ paths, baseColor, accentColor, cameraPoint
       sceneRef.current!.add(box);
       pathMeshesRef.current.push(box);
     });
-  }, [paths, baseColor, accentColor, cameraPoint, lookAtPoint]);
+  }, [paths, baseColor, accentColor, cameraPoint, lookAtPoint, accentSliders]);
 
   return <div ref={containerRef} className="w-full h-full" />;
 }
