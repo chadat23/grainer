@@ -85,15 +85,15 @@ export default function GCodeViewer({ paths, defaultColor, minColor, maxColor, c
     groundPlane.position.y = -0.01; // Slightly below grid to prevent z-fighting
     scene.add(groundPlane);
 
-    const fov = 50;
-    const cameraZ = Math.abs(maxDim / Math.sin((fov * Math.PI) / 360)) * 0.25;
+    const fov = 100;
+    const cameraZ = Math.abs(maxDim / Math.sin((fov * Math.PI) / 360)) * 0.5;
 
     // Camera setup
     const camera = new THREE.PerspectiveCamera(
       fov,
       containerRef.current.clientWidth / containerRef.current.clientHeight,
       0.1,
-      cameraZ * 4
+      cameraZ * 10
     );
     camera.position.set(cameraPoint.x, cameraPoint.y, cameraPoint.z);
     camera.lookAt(new THREE.Vector3(lookAtPoint.x, lookAtPoint.y, lookAtPoint.z));
@@ -200,6 +200,7 @@ export default function GCodeViewer({ paths, defaultColor, minColor, maxColor, c
     // Calculate the min and max Z values
     var provisionalMinZ: number | undefined = undefined;
     var provisionalMaxZ: number | undefined = undefined;
+    console.log("paths about to be processed", paths);
     paths.forEach((path) => {
       if (provisionalMinZ === undefined || path.start.z < provisionalMinZ) {
         provisionalMinZ = path.start.z;
