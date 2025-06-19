@@ -89,39 +89,40 @@ function filterExteriorPaths(paths: Path[]): Path[] {
     var layerEndIndex = 0;
     var extrustions = 0;
     const firstLayerEndIndex = layerIndicies.get(0)?.layerEndIndex ?? 0;
-    paths.forEach((path, index) => {
-        // The first layer is by definition visible
-       if (index < firstLayerEndIndex) {
-            outputPaths.push(path);
-            if (path.end.e > 0) {
-                extrustions++;
-            }
-        } else {
 
-            // Accounting in case we just hit a new layer
-            if (path.start.z < (layerIndicies.get(layerIndex)?.z ?? 0)) {
-                layerStartIndex = layerIndicies.get(layerIndex)?.layerStartIndex ?? 0;
-                layerEndIndex = layerIndicies.get(layerIndex)?.layerEndIndex ?? 0;
-            } else if (path.start.z > (layerIndicies.get(layerIndex)?.z ?? 0)) {
-                layerStartIndex = layerIndicies.get(layerIndex)?.layerStartIndex ?? 0;
-                layerEndIndex = layerIndicies.get(layerIndex)?.layerEndIndex ?? 0;
-            }
-
-            //if (isInside(path, paths.slice(Math.max(layerStartIndex, index - 1), Math.min(layerEndIndex, index + 1)))) {
-            //if (isInside(path, paths)) {
-                //outputPaths.push(path);
-            //}
-        }
-    });
-    // Process other layers
-    for (let layerIdx = 1; layerIdx < layerIndicies.size; layerIdx++) {
-        const layerInfo = layerIndicies.get(layerIdx);
-        if (!layerInfo) continue;
-        
-        const layerPaths = paths.slice(layerInfo.layerStartIndex, layerInfo.layerEndIndex + 1);
-        const exteriorLayerPaths = layerPaths.filter(path => isExteriorPath(path, layerPaths));
-        outputPaths.push(...exteriorLayerPaths);
+    // The first layer is by definition visible
+    var layerInfo = layerIndicies.get(0);
+    for (let index = layerInfo?.layerStartIndex ?? 0; index < (layerInfo?.layerEndIndex ?? 0); index++) {
+        const path = paths[index];
+        outputPaths.push(path);
     }
+
+    // Process middle layers
+    for (let layerIdx = 1; layerIdx < layerIndicies.size - 1; layerIdx++) {
+        layerInfo = layerIndicies.get(layerIdx);
+        for (let pathIndex = layerInfo?.layerStartIndex ?? 0; pathIndex < (layerInfo?.layerEndIndex ?? 0); pathIndex++) {
+            const path = paths[pathIndex];
+            if (!isInside(path, paths)) {
+                outputPaths.push(path);
+            }
+        }
+    }
+
+    // The last layer is by definition visible
+    var layerInfo = layerIndicies.get(layerIndicies.size - 1);
+    for (let index = layerInfo?.layerStartIndex ?? 0; index < (layerInfo?.layerEndIndex ?? 0); index++) {
+        const path = paths[index];
+        outputPaths.push(path);
+    }
+    //// Process other layers
+    //for (let layerIdx = 1; layerIdx < layerIndicies.size; layerIdx++) {
+    //    const layerInfo = layerIndicies.get(layerIdx);
+    //    if (!layerInfo) continue;
+    //    
+    //    const layerPaths = paths.slice(layerInfo.layerStartIndex, layerInfo.layerEndIndex + 1);
+    //    const exteriorLayerPaths = layerPaths.filter(path => isExteriorPath(path, layerPaths));
+    //    outputPaths.push(...exteriorLayerPaths);
+    //}
     return outputPaths;
 }
 
