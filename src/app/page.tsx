@@ -18,15 +18,20 @@ interface Path {
 
 const cameraPoint: Point = { x: 150, y: 150, z: 150, e: 0 };
 const lookAtPoint: Point = { x: 0, y: 0, z: 0, e: 0 };
-const sliderStart = 2;
-const sliderEnd = 5;
+const sliderTemp = 200;
+const sliderMinTemp = 170;
+const sliderMaxTemp = 250;
+const sliderLayer = 0;
+const sliderMinLayer = 0;
+const sliderMaxLayer = 100;
 
 export default function Home() {
   const [paths, setPaths] = useState<Path[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [baseColor, setBaseColor] = useState('#DEB887'); // Default tan color
-  const [accentColor, setAccentColor] = useState('#A52A2A'); // Default tan color
-  const [accentSliders, setAccentSliders] = useState([{ accentNumb: 1, accentStart: sliderStart, accentEnd: sliderEnd}]);
+  const [defaultColor, setDefaultColor] = useState('#99FF99'); // Default tan color
+  const [minColor, setMinColor] = useState('#DEB887'); // Default tan color
+  const [maxColor, setMaxColor] = useState('#A52A2A'); // Default tan color
+  const [accentSliders, setAccentSliders] = useState([{ accentNumb: 1, accentLayer: sliderLayer, accentTemp: sliderTemp}]);
 
   useEffect(() => {
     console.log("page useEffect called");
@@ -54,7 +59,7 @@ export default function Home() {
   const addAccentSlider = () => {
     setAccentSliders([
       ...accentSliders,
-      { accentNumb: accentSliders.length + 1, accentStart: sliderStart, accentEnd: sliderEnd }
+      { accentNumb: accentSliders.length + 1, accentLayer: sliderLayer, accentTemp: sliderTemp }
     ]);
   };
 
@@ -64,7 +69,7 @@ export default function Home() {
         slider.accentNumb === accentNumb 
           ? { 
               ...slider, 
-              ...(sliderNumb === 1 ? { accentStart: parseFloat(newValue) } : { accentEnd: parseFloat(newValue) })
+              ...(sliderNumb === 1 ? { accentLayer: parseFloat(newValue) } : { accentTemp: parseFloat(newValue) })
             } 
           : slider
       )
@@ -89,33 +94,46 @@ export default function Home() {
     <main className="flex h-screen w-full bg-gray-900 text-white">
       <div className="w-1/3 p-6 space-y-6">
         <div className="space-y-2">
-          <label htmlFor="baseColor" className="block text-sm font-medium text-gray-300">
-            Base Color
+          <label htmlFor="minColor" className="block text-sm font-medium text-gray-300">
+            Default Temperature Color
           </label>
           <div className="flex items-center space-x-3">
             <input
               type="color"
-              id="baseColor"
-              value={baseColor}
-              onChange={(e) => setBaseColor(e.target.value)}
+              id="defaultColor"
+              value={defaultColor}
+              onChange={(e) => setDefaultColor(e.target.value)}
               className="h-10 w-20 rounded cursor-pointer"
             />
-            <span className="text-sm text-gray-400">{baseColor}</span>
+            <span className="text-sm text-gray-400">{defaultColor}</span>
+          </div>
+          <label htmlFor="minColor" className="block text-sm font-medium text-gray-300">
+            Minimum Temperature Color
+          </label>
+          <div className="flex items-center space-x-3">
+            <input
+              type="color"
+              id="minColor"
+              value={minColor}
+              onChange={(e) => setMinColor(e.target.value)}
+              className="h-10 w-20 rounded cursor-pointer"
+            />
+            <span className="text-sm text-gray-400">{minColor}</span>
           </div>
         </div>
         <div className="space-y-2">
-          <label htmlFor="accentColor" className="block text-sm font-medium text-gray-300">
-            Accent Color
+          <label htmlFor="maxColor" className="block text-sm font-medium text-gray-300">
+            Maximum Temperature Color
           </label>
           <div className="flex items-center space-x-3">
             <input
               type="color"
-              id="accentColor"
-              value={accentColor}
-              onChange={(e) => setAccentColor(e.target.value)}
+              id="maxColor"
+              value={maxColor}
+              onChange={(e) => setMaxColor(e.target.value)}
               className="h-10 w-20 rounded cursor-pointer"
             />
-            <span className="text-sm text-gray-400">{accentColor}</span>
+            <span className="text-sm text-gray-400">{maxColor}</span>
           </div>
         </div>
         <div className="space-y-4 pt-6">
@@ -127,14 +145,14 @@ export default function Home() {
                   htmlFor={`slider1-${slider.accentNumb}`}
                   className="w-24 text-sm font-medium text-gray-400"
                 >
-                  Accent {slider.accentNumb} Start
+                  Accent {slider.accentNumb} Layer
                 </label>
                 <input
                   type="range"
                   id={`slider1-${slider.accentNumb}`}
-                  min="0"
-                  max="100"
-                  value={slider.accentStart}
+                  min={sliderMinLayer}
+                  max={sliderMaxLayer}
+                  value={slider.accentLayer}
                   onChange={(e) =>
                     handleSliderChange(slider.accentNumb, 1, e.target.value)
                   }
@@ -142,7 +160,7 @@ export default function Home() {
                 />
                 <input
                   type="number"
-                  value={slider.accentStart}
+                  value={slider.accentLayer}
                   onChange={(e) =>
                     handleSliderChange(slider.accentNumb, 1, e.target.value)
                   }
@@ -154,14 +172,14 @@ export default function Home() {
                   htmlFor={`slider2-${slider.accentNumb}`}
                   className="w-24 text-sm font-medium text-gray-400"
                 >
-                  Accent {slider.accentNumb} End
+                  Accent {slider.accentNumb} Temp
                 </label>
                 <input
                   type="range"
                   id={`slider2-${slider.accentNumb}`}
-                  min="0"
-                  max="100"
-                  value={slider.accentEnd}
+                  min={sliderMinTemp}
+                  max={sliderMaxTemp}
+                  value={slider.accentTemp}
                   onChange={(e) =>
                     handleSliderChange(slider.accentNumb, 2, e.target.value)
                   }
@@ -169,7 +187,7 @@ export default function Home() {
                 />
                 <input
                   type="number"
-                  value={slider.accentEnd}
+                  value={slider.accentTemp}
                   onChange={(e) =>
                     handleSliderChange(slider.accentNumb, 2, e.target.value)
                   }
@@ -187,7 +205,7 @@ export default function Home() {
         </div>
       </div>
       <div className="w-2/3 h-full">
-        <GCodeViewer paths={paths} baseColor={baseColor} accentColor={accentColor} cameraPoint={cameraPoint} lookAtPoint={lookAtPoint} accentSliders={accentSliders}/>
+        <GCodeViewer paths={paths} defaultColor={defaultColor} minColor={minColor} maxColor={maxColor} cameraPoint={cameraPoint} lookAtPoint={lookAtPoint} accentSliders={accentSliders}/>
       </div>
     </main>
   );

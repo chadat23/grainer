@@ -18,18 +18,19 @@ interface Path {
 
 interface GCodeViewerProps {
   paths: Path[];
-  baseColor: string;
-  accentColor: string;
+  defaultColor: string;
+  minColor: string;
+  maxColor: string;
   cameraPoint: Point;
   lookAtPoint: Point;
   accentSliders: {
     accentNumb: number;
-    accentStart: number;
-    accentEnd: number;
+    accentLayer: number;
+    accentTemp: number;
   }[];
 }
 
-export default function GCodeViewer({ paths, baseColor, accentColor, cameraPoint, lookAtPoint, accentSliders }: GCodeViewerProps) {
+export default function GCodeViewer({ paths, defaultColor, minColor, maxColor, cameraPoint, lookAtPoint, accentSliders }: GCodeViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -190,37 +191,42 @@ export default function GCodeViewer({ paths, baseColor, accentColor, cameraPoint
     pathMeshesRef.current = [];
 
     // Create rectangles for each path
-    const pathWidth = 0.4; // Width of the rectangle
-    const pathHeight = 0.2; // Height of the rectangle
+    const pathWidth = 0.2; // Width of the rectangle
+    const pathHeight = 0.4; // Height of the rectangle
     const roughness = 0.7;
     const metalness = 0.2;
     const side = THREE.DoubleSide;
 
     // Calculate the min and max Z values
-    var minZ: number | undefined = undefined;
-    var maxZ: number | undefined = undefined;
+    var provisionalMinZ: number | undefined = undefined;
+    var provisionalMaxZ: number | undefined = undefined;
     paths.forEach((path) => {
-      if (minZ === undefined || path.start.z < minZ) {
-        minZ = path.start.z;
+      if (provisionalMinZ === undefined || path.start.z < provisionalMinZ) {
+        provisionalMinZ = path.start.z;
       }
-      if (maxZ === undefined || path.start.z > maxZ) {
-        maxZ = path.start.z;
+      if (provisionalMaxZ === undefined || path.start.z > provisionalMaxZ) {
+        provisionalMaxZ = path.start.z;
       }
     });
-    if (minZ === undefined || maxZ === undefined) {
-      minZ = 0;
-      maxZ = 1;
+    if (provisionalMinZ === undefined || provisionalMaxZ === undefined) {
+      provisionalMinZ = 0;
+      provisionalMaxZ = 1;
     }
-    const finalMinZ = minZ!;
-    const finalMaxZ = maxZ!;
+    const minZ = provisionalMinZ!;
+    const maxZ = provisionalMaxZ!;
 
-    const baseColorInt = parseInt(baseColor.slice(1), 16);
-    const accentColorInt = parseInt(accentColor.slice(1), 16);
+    // Get the min and max temp from the accent sliders
+    const minTemp = accentSliders.reduce((min, slider) => Math.min(min, slider.accentTemp), Infinity);
+    const maxTemp = accentSliders.reduce((max, slider) => Math.max(max, slider.accentTemp), -Infinity);
+    console.log("minTemp", minTemp);
+    console.log("maxTemp", maxTemp);
+
+    const defaultColorInt = parseInt(defaultColor.slice(1), 16);
+    const minColorInt = parseInt(minColor.slice(1), 16);
+    const maxColorInt = parseInt(maxColor.slice(1), 16);
 
     var accentIndex = 0;
-    var color = baseColorInt;
-
-    console.log("accentSliders", accentSliders);
+    var color = minColorInt;
 
     paths.forEach((path) => {
       const start = new THREE.Vector3(path.start.x, path.start.y, path.start.z);
@@ -234,16 +240,36 @@ export default function GCodeViewer({ paths, baseColor, accentColor, cameraPoint
       // Create a box geometry
       const geometry = new THREE.BoxGeometry(length, pathHeight, pathWidth);
 
-      // Create a material
-      //const relativeZ = (path.start.z - finalMinZ) / (finalMaxZ - finalMinZ);
-      //const color = interpolateColor(baseColorInt, accentColorInt, relativeZ);
-      //console.log("accentIndex", accentIndex);
-      if (accentIndex < accentSliders.length) {
-        if (path.start.z >= accentSliders[accentIndex].accentStart && path.start.z <= accentSliders[accentIndex].accentEnd) {
-          color = accentColorInt;
-        } else if (color === accentColorInt) {
+      // get color for the path
+      if (path.start.z < accentSliders[accentIndex].accentLayer) {
+        color = defaultColorInt;
+      } else if (accentIndex < accentSliders.length - 1) {
+        if (path.start.z == accentSliders[accentIndex + 1].accentLayer) {
           accentIndex++;
-          color = baseColorInt;
+        }
+
+        color = calcColor(
+          minColorInt, 
+          maxColorInt, 
+          minTemp, 
+          maxTemp, 
+          accentSliders[accentIndex].accentTemp, 
+          accentSliders[accentIndex+1].accentTemp, 
+          accentSliders[accentIndex].accentLayer, 
+          accentSliders[accentIndex+1].accentLayer, 
+          path.start.z
+        );
+      } else if (accentIndex == accentSliders.length - 1) {
+        color = accentSliders[accentIndex].accentTemp;
+      }
+
+      // Create a material
+      if (accentIndex < accentSliders.length) {
+        if (path.start.z >= accentSliders[accentIndex].accentLayer && path.start.z <= accentSliders[accentIndex].accentTemp) {
+          color = maxColorInt;
+        } else if (color === maxColorInt) {
+          accentIndex++;
+          color = minColorInt;
         }
       }
       const pathMaterial = new THREE.MeshStandardMaterial({ 
@@ -268,21 +294,51 @@ export default function GCodeViewer({ paths, baseColor, accentColor, cameraPoint
       sceneRef.current!.add(box);
       pathMeshesRef.current.push(box);
     });
-  }, [paths, baseColor, accentColor, cameraPoint, lookAtPoint, accentSliders]);
+  }, [paths, minColor, maxColor, cameraPoint, lookAtPoint, accentSliders]);
 
   return <div ref={containerRef} className="w-full h-full" />;
 }
 
-// interpolate between two colors and return a hex color
-function interpolateColor(color1: number, color2: number, ratio: number): number {
-  const r1 = (color1 >> 16) & 0xFF;
-  const g1 = (color1 >> 8) & 0xFF;
-  const b1 = color1 & 0xFF;
-  const r2 = (color2 >> 16) & 0xFF;
-  const g2 = (color2 >> 8) & 0xFF;
-  const b2 = color2 & 0xFF;
-  const r = r1 + (r2 - r1) * ratio;
-  const g = g1 + (g2 - g1) * ratio;
-  const b = b1 + (b2 - b1) * ratio;
+function calcTempsColor(minColor: number, maxColor: number, minTemp: number, maxTemp: number, thisTemp: number): number {
+  const minR = (minColor >> 16) & 0xFF;
+  const minG = (minColor >> 8) & 0xFF;
+  const minB = minColor & 0xFF;
+  const maxR = (maxColor >> 16) & 0xFF;
+  const maxG = (maxColor >> 8) & 0xFF;
+  const maxB = maxColor & 0xFF;
+
+  const rDelta = maxR - minR;
+  const gDelta = maxG - minG;
+  const bDelta = maxB - minB;
+
+  const r = minR + rDelta * (thisTemp - minTemp) / (maxTemp - minTemp);
+  const g = minG + gDelta * (thisTemp - minTemp) / (maxTemp - minTemp);
+  const b = minB + bDelta * (thisTemp - minTemp) / (maxTemp - minTemp);
+
   return (r << 16) | (g << 8) | b;
+}
+
+function calcLayerTemp(lastTemp: number, nextTemp: number, lastLayer: number, thisLayer: number, nextLayer: number): number {
+  const tempDelta = nextTemp - lastTemp;
+  const layerDelta = nextLayer - lastLayer;
+
+  const temp = lastTemp + tempDelta * (thisLayer - lastLayer) / layerDelta;
+  return temp;
+}
+
+// interpolate between two colors and return a hex color
+function calcColor(
+  minColor: number, 
+  maxColor: number, 
+  minTemp: number, 
+  maxTemp: number, 
+  lastTemp: number, 
+  nextTemp: number, 
+  lastLayer: number, 
+  thisLayer: number, 
+  nextLayer: number): number {
+
+  const thisTemp = calcLayerTemp(lastTemp, nextTemp, lastLayer, thisLayer, nextLayer);
+  const thisColor = calcTempsColor(minColor, maxColor, minTemp, maxTemp, thisTemp);
+  return thisColor;
 }
