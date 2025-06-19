@@ -58,17 +58,26 @@ export default function MovementParser({ gcode }: { gcode: string }): Path[] {
 
 function filterExteriorPaths(paths: Path[]): Path[] {
     var layerIndicies: Map<number, {z: number, layerStartIndex: number, layerEndIndex: number}> = new Map();
+    console.log("paths", paths);
 
     var layerIndex = 0;
-    var layerZ = paths[0].start.z;
+    var layerZ = paths[5].start.z;
     var layerStartIndex = 0;
+    const minZ = Math.min(...paths.map(p => p.start.z));
+    var passedJunk = false;
+    console.log("max z", Math.max(...paths.map(p => p.start.z)));
+    console.log("layerZ", layerZ);
     paths.forEach((path, index) => {
-        if (path.start.z > layerZ) {
+        if (!passedJunk && path.start.z == minZ) {
+            passedJunk = true;
+        }
+        //console.log("path.start.z", path.start.z);
+        if (path.start.z > layerZ && passedJunk) {
             layerIndicies.set(layerIndex, {z: layerZ, layerStartIndex: layerStartIndex, layerEndIndex: index - 1});
             layerIndex++;
             layerZ = path.start.z;
             layerStartIndex = index;
-        } else if (index == paths.length - 1) {
+        } else if (index == paths.length - 1 && passedJunk) {
             layerIndicies.set(layerIndex, {z: layerZ, layerStartIndex: layerStartIndex, layerEndIndex: index});
         }
     });
@@ -87,23 +96,32 @@ function filterExteriorPaths(paths: Path[]): Path[] {
             if (path.end.e > 0) {
                 extrustions++;
             }
-            console.log("first layer check", extrustions);
         } else {
 
-        // Accounting in case we just hit a new layer
-        if (path.start.z < (layerIndicies.get(layerIndex)?.z ?? 0)) {
-            layerStartIndex = layerIndicies.get(layerIndex)?.layerStartIndex ?? 0;
-            layerEndIndex = layerIndicies.get(layerIndex)?.layerEndIndex ?? 0;
-        } else if (path.start.z > (layerIndicies.get(layerIndex)?.z ?? 0)) {
-            layerStartIndex = layerIndicies.get(layerIndex)?.layerStartIndex ?? 0;
-            layerEndIndex = layerIndicies.get(layerIndex)?.layerEndIndex ?? 0;
-        }
+            // Accounting in case we just hit a new layer
+            if (path.start.z < (layerIndicies.get(layerIndex)?.z ?? 0)) {
+                layerStartIndex = layerIndicies.get(layerIndex)?.layerStartIndex ?? 0;
+                layerEndIndex = layerIndicies.get(layerIndex)?.layerEndIndex ?? 0;
+            } else if (path.start.z > (layerIndicies.get(layerIndex)?.z ?? 0)) {
+                layerStartIndex = layerIndicies.get(layerIndex)?.layerStartIndex ?? 0;
+                layerEndIndex = layerIndicies.get(layerIndex)?.layerEndIndex ?? 0;
+            }
 
-        if (isInside(path, paths.slice(Math.max(layerStartIndex, index - 1), Math.min(layerEndIndex, index + 1)))) {
-            outputPaths.push(path);
-        }
+            //if (isInside(path, paths.slice(Math.max(layerStartIndex, index - 1), Math.min(layerEndIndex, index + 1)))) {
+            //if (isInside(path, paths)) {
+                //outputPaths.push(path);
+            //}
         }
     });
+    // Process other layers
+    for (let layerIdx = 1; layerIdx < layerIndicies.size; layerIdx++) {
+        const layerInfo = layerIndicies.get(layerIdx);
+        if (!layerInfo) continue;
+        
+        const layerPaths = paths.slice(layerInfo.layerStartIndex, layerInfo.layerEndIndex + 1);
+        const exteriorLayerPaths = layerPaths.filter(path => isExteriorPath(path, layerPaths));
+        outputPaths.push(...exteriorLayerPaths);
+    }
     return outputPaths;
 }
 
@@ -129,7 +147,7 @@ function isInside(path: Path, paths: Path[]): boolean {
 
 // -1 if it's to the left, 1 if it's to the right, 0 if they're not adjacent
 function reltivePosition(point1: Point, point2: Point, path: Path): number {
-    console.log(point1, point2, path);
+    //console.log(point1, point2, path);
     // if both points are below the path, it's not adjacent
     const minY = Math.min(path.start.y, path.end.y);
     if (minY > point1.y && minY > point2.y) {
@@ -158,4 +176,32 @@ function reltivePosition(point1: Point, point2: Point, path: Path): number {
         return -1;
     }
     return 1;
+}
+
+function isExteriorPath(path: Path, layerPaths: Path[]): boolean {
+    // A path is exterior if it's not completely surrounded by other paths
+    // For now, let's use a simple heuristic: check if the path endpoints are near the boundary
+    
+    const tolerance = 2.0; // mm tolerance for "near boundary"
+    
+    // Get the bounding box of the layer
+    const minX = Math.min(...layerPaths.map(p => Math.min(p.start.x, p.end.x)));
+    const maxX = Math.max(...layerPaths.map(p => Math.max(p.start.x, p.end.x)));
+    const minY = Math.min(...layerPaths.map(p => Math.min(p.start.y, p.end.y)));
+    const maxY = Math.max(...layerPaths.map(p => Math.max(p.start.y, p.end.y)));
+    
+    // Check if either endpoint is near the boundary
+    const startNearBoundary = 
+        Math.abs(path.start.x - minX) < tolerance ||
+        Math.abs(path.start.x - maxX) < tolerance ||
+        Math.abs(path.start.y - minY) < tolerance ||
+        Math.abs(path.start.y - maxY) < tolerance;
+        
+    const endNearBoundary = 
+        Math.abs(path.end.x - minX) < tolerance ||
+        Math.abs(path.end.x - maxX) < tolerance ||
+        Math.abs(path.end.y - minY) < tolerance ||
+        Math.abs(path.end.y - maxY) < tolerance;
+    
+    return startNearBoundary || endNearBoundary;
 }
