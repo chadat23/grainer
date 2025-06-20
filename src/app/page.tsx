@@ -21,8 +21,8 @@ const lookAtPoint: Point = { x: 0, y: 0, z: 0, e: 0 };
 const sliderTemp = 200;
 const sliderMinTemp = 170;
 const sliderMaxTemp = 250;
-const sliderLayer = 0;
-const sliderMinLayer = 0;
+const sliderLayer = 1;
+const sliderMinLayer = 1;
 const sliderMaxLayer = 100;
 
 export default function Home() {

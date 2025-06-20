@@ -58,6 +58,7 @@ export default function GCodeViewer({ paths, defaultColor, minColor, maxColor, c
       bounds.expandByPoint(new THREE.Vector3(path.end.x, path.end.y, path.end.z));
     });
     const size = bounds.getSize(new THREE.Vector3());
+    const center = bounds.getCenter(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
 
     // Add grid helper
@@ -112,7 +113,8 @@ export default function GCodeViewer({ paths, defaultColor, minColor, maxColor, c
     controls.enableDamping = false;
     controls.dampingFactor = 0;
     controls.rotateSpeed = 1.0;
-    controls.target.set(0, 0, 0);
+    //controls.target.set(0, 0, 0);
+    controls.target.copy(center);
     controls.minDistance = maxDim * 0.01;
     controls.maxDistance = maxDim * 2;
 
@@ -200,7 +202,6 @@ export default function GCodeViewer({ paths, defaultColor, minColor, maxColor, c
     // Calculate the min and max Z values
     var provisionalMinZ: number | undefined = undefined;
     var provisionalMaxZ: number | undefined = undefined;
-    console.log("paths about to be processed", paths);
     paths.forEach((path) => {
       if (provisionalMinZ === undefined || path.start.z < provisionalMinZ) {
         provisionalMinZ = path.start.z;
@@ -242,37 +243,42 @@ export default function GCodeViewer({ paths, defaultColor, minColor, maxColor, c
       const geometry = new THREE.BoxGeometry(length, pathHeight, pathWidth);
 
       // get color for the path
-      if (path.start.z < accentSliders[accentIndex].accentLayer) {
-        color = defaultColorInt;
-      } else if (accentIndex < accentSliders.length - 1) {
-        if (path.start.z == accentSliders[accentIndex + 1].accentLayer) {
-          accentIndex++;
-        }
-
-        color = calcColor(
-          minColorInt, 
-          maxColorInt, 
-          minTemp, 
-          maxTemp, 
-          accentSliders[accentIndex].accentTemp, 
-          accentSliders[accentIndex+1].accentTemp, 
-          accentSliders[accentIndex].accentLayer, 
-          accentSliders[accentIndex+1].accentLayer, 
-          path.start.z
-        );
-      } else if (accentIndex == accentSliders.length - 1) {
-        color = accentSliders[accentIndex].accentTemp;
+      color = 0x99FF99;
+      if (path.start.z  * 5 - 0.05 < accentSliders[accentIndex].accentLayer) {
+        //color = defaultColorInt;
+        color = 0xA52A2A;
       }
+      //} else if (accentIndex < accentSliders.length - 1) {
+        //if (path.start.z == accentSliders[accentIndex + 1].accentLayer) {
+        //  accentIndex++;
+        //}
+
+        //color = calcColor(
+        //  minColorInt, 
+        //  maxColorInt, 
+        //  minTemp, 
+        //  maxTemp, 
+        //  accentSliders[accentIndex].accentTemp, 
+        //  accentSliders[accentIndex+1].accentTemp, 
+        //  accentSliders[accentIndex].accentLayer, 
+        //  accentSliders[accentIndex+1].accentLayer, 
+        //  path.start.z
+        //);
+      //} else if (accentIndex == accentSliders.length - 1) {
+        //color = accentSliders[accentIndex].accentTemp;
+        //color = 0xA52A2A;
+      //}
+      //if (path.start.z == 400) {
 
       // Create a material
-      if (accentIndex < accentSliders.length) {
-        if (path.start.z >= accentSliders[accentIndex].accentLayer && path.start.z <= accentSliders[accentIndex].accentTemp) {
-          color = maxColorInt;
-        } else if (color === maxColorInt) {
-          accentIndex++;
-          color = minColorInt;
-        }
-      }
+      //if (accentIndex < accentSliders.length) {
+      //  if (path.start.z >= accentSliders[accentIndex].accentLayer && path.start.z <= accentSliders[accentIndex].accentTemp) {
+      //    color = maxColorInt;
+      //  } else if (color === maxColorInt) {
+      //    accentIndex++;
+      //    color = minColorInt;
+      //  }
+      //}
       const pathMaterial = new THREE.MeshStandardMaterial({ 
         color: new THREE.Color(color), // Tan color
         roughness: roughness,

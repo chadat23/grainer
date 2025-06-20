@@ -4,11 +4,44 @@ import { useEffect, useState } from 'react';
 import { GCodeCommand } from '@/types/gcode';
 import { parseGCode } from './GCodeParser';
 
-interface Point {
+interface G0 {
   x: number;
   y: number;
   z: number;
-  e: number;
+}
+
+interface G1 {
+  x: number;
+  y: number;
+  z: number;
+  e: boolean;
+}
+
+interface G2 {
+  x: number;
+  y: number;
+  z: number;
+  i: number;
+  j: number;
+  r: number;
+  e: boolean;
+}
+
+interface G3 {
+  x: number;
+  y: number;
+  z: number;
+  i: number;
+  j: number;
+  r: number;
+  e: boolean;
+}
+
+enum CodeType {
+  G0 = 'G0',
+  G1 = 'G1',
+  G2 = 'G2',
+  G3 = 'G3',
 }
 
 interface Path {
@@ -20,13 +53,13 @@ export default function MovementParser({ gcode }: { gcode: string }): Path[] {
   try {
     const parsedGCode = parseGCode(gcode);
 
-    const currentPosition: Point = { x: 0, y: 0, z: 0, e: 0 };
+    const currentPosition: Code = { type: CodeType.G0, x: 0, y: 0, z: 0, e: 0 };
     //const paths: Path[] = [];
-    const points: Point[] = [];
-    var lastPoint: Point = { x: 0, y: 0, z: 0, e: 0 };
+    const points: Code[] = [];
+    var lastPoint: Code = { type: CodeType.G0, x: 0, y: 0, z: 0, e: 0 };
 
     parsedGCode.forEach((command) => {
-      if (command.type === 'G0' || command.type === 'G1') {
+      if (command.type === 'G0' || command.type === 'G1' || command.type === 'G2' || command.type === 'G3') {
         const start: Point = { ...currentPosition };
         // Update position based on command parameters
         if (command.x !== undefined) {
@@ -39,9 +72,9 @@ export default function MovementParser({ gcode }: { gcode: string }): Path[] {
             currentPosition.z = command.z;
         }
         if (command.e !== undefined) {
-            currentPosition.e = command.e;
+            currentPosition.e = command.e > 0 ? true : false;
         } else {
-            currentPosition.e = 0;
+            currentPosition.e = false;
         }
         points.push({ ...currentPosition });
       }
@@ -61,60 +94,138 @@ export default function MovementParser({ gcode }: { gcode: string }): Path[] {
 }
 
 function filterExteriorPaths(points: Point[], delta: number): Path[] {
-    var loops: Path[][] = [];
-    var paths: Path[] = [];
-    var lastG0: Point = { x: 0, y: 0, z: 0, e: 0 };
-    var lastWasG0 = true;
-
-    for (var i = 1; i < points.length; i++) {
-        const point = points[i];
-        if (point.e > 0 && point.z > 0.15 && point.z < 0.25) {
-            paths.push({ start: points[i - 1], end: point });
-        }
-    }
-
-    var provisionalLoop: Point[] = [];
+    const hashable = 1000;  // multiplier to make the z-axis easily hashable
+    const validScaledPoints: Point[] = [];
     for (const point of points) {
-        // TODO: placeholder for now, need to figure out how to tell innermost from outermost
-        if (point.z < 0.35 || point.z > 0.45) {
-            continue;
-        }
-        if (point.e === 0) {
-            if (provisionalLoop.length > 0) {
-                if (aboutEqual(provisionalLoop[0], provisionalLoop[provisionalLoop.length - 1], delta)) {
-                    console.log("provisionalLoop", provisionalLoop);
-                    const loop: Path[] = [];
-                    for (var i = 0; i < provisionalLoop.length - 1; i++) {
-                        loop.push({ start: provisionalLoop[i], end: provisionalLoop[i + 1] });
-                    }
-                    loops.push(loop);
-                }
-                provisionalLoop = [];
-            }
-            lastG0 = point;
-            lastWasG0 = true;
-        } else {
-            if (lastWasG0) {
-                if (lastG0.x === point.x && lastG0.y === point.y) {
-                    continue;
-                }
-                provisionalLoop.push(lastG0);
-            }
-            provisionalLoop.push(point);
-            lastWasG0 = false;
+        if (point.z > 0) {
+            validScaledPoints.push({
+                ...point,
+                z: Math.floor(point.z * hashable)
+            });
         }
     }
-    console.log("loops", loops);
-    const {outermost, innermost} = innermostLoops(loops, delta);
-    console.log("outermost", outermost);
-    paths.push(...outermost);
-    return paths;
+
+    var loops: Map<number, Path[][]> = new Map();
+    var lastJog: {z: number, point: Point} = {z: 0, point: {x: 0, y: 0, z: 0, e: 0}};
+    var lastWasJog: {z: number, wasJog: boolean} = {z: 0, wasJog: false};
+    var outputPaths: Path[] = [];
+
+    var minExtrudedZ = 1000000;
+    for (const point of validScaledPoints) {
+        if (point.z < minExtrudedZ && point.e) {
+            minExtrudedZ = point.z;
+        }
+    }
+    console.log("minExtrudedZ", minExtrudedZ);
+
+    var lastPoint: Point = { x: 0, y: 0, z: 0, e: false };
+    var provisionalLoop: Path[] = [];
+
+    // Skip past some setup stuff
+    var firstMinExtrudedZ = 0;
+    for (const point of validScaledPoints) {
+        if (point.z == minExtrudedZ) {
+            break;
+        }
+        firstMinExtrudedZ++;
+    }
+
+    console.log("validScaledPoints", validScaledPoints);
+
+    // Process the paths
+    for (const point of validScaledPoints.slice(firstMinExtrudedZ, -1)) {
+        if (minExtrudedZ == point.z) {
+            if (point.e) {
+                outputPaths.push({ start: lastJog.point, end: point });
+            }
+            lastJog = {z: point.z, point: point};
+        }
+        //} else if (point.e === 0 && point.z == 400) {
+        ////} else if (point.e === 0) {
+        //    if (provisionalLoop.length > 0) {
+        //        if (aboutEqual(provisionalLoop[0].start, provisionalLoop[provisionalLoop.length - 1].end, delta)) {
+        //            console.log("provisionalLoop", provisionalLoop);
+        //            const loop: Path[] = [];
+        //            for (var i = 0; i < provisionalLoop.length - 1; i++) {
+        //                loop.push({ start: provisionalLoop[i].start, end: provisionalLoop[i + 1].end });
+        //            }
+        //            if (!loops.has(point.z)) {
+        //                loops.set(point.z, [loop]);
+        //            }
+        //            loops.get(point.z)?.push(loop);
+        //        }
+        //        provisionalLoop = [];
+        //    }
+        //    lastJog.set(point.z, point);
+        //    lastWasJog.set(point.z, true);
+        //} else if (point.z == 400) {
+        ////} else {
+        //    if (lastWasJog.get(point.z)) {
+        //        if (lastJog.get(point.z)?.x === point.x && lastJog.get(point.z)?.y === point.y) {
+        //            // This is a purge, not a loop
+        //            lastWasJog.set(point.z, false);
+        //            continue;
+        //        }
+        //        provisionalLoop.push({ start: lastJog.get(point.z)!, end: point });
+        //        //provisionalLoop.push({ start: lastJog.get(point.z)!, end: point });
+        //    } else {
+        //        provisionalLoop.push({ start: provisionalLoop[provisionalLoop.length - 1].end, end: point });
+        //        //provisionalLoop.push({ end: provisionalLoop[provisionalLoop.length - 1].start, start: point });
+        //    }
+        //    lastWasJog.set(point.z, false);
+        //}
+    }
+
+    for (const layer of loops.values()) {
+        //const {outermost, innermost} = perimeterLoops(layer, delta);
+        //outputPaths.push(...outermost);
+        var i = 0;
+        //for (const innermostLoop of layer) {
+        for (const innermostLoop of layer) {
+            //if (i !== 6) {
+            //    console.log("skipping layer", i);
+            //    console.log("innermost length", innermostLoop.length);
+            //    continue;
+            //}
+            console.log("innermost", innermostLoop);
+            console.log("innermost length", innermostLoop.length);
+            for (const path of innermostLoop) {
+                //console.log("path", path);
+                outputPaths.push(path);
+            }
+            i++;
+        }
+    }
+    console.log("outputPaths", outputPaths);
+
+    // Unscale the paths
+    const unscaledPaths = outputPaths.map(path => {
+        return {
+            start: {
+                x: path.start.x,
+                y: path.start.y,
+                z: path.start.z / hashable,
+                e: path.start.e
+            },
+            end: {
+                x: path.end.x,
+                y: path.end.y,
+                z: path.end.z / hashable,
+                e: path.end.e
+            }
+        }
+    });
+    return unscaledPaths;
 }
 
 // TODO: need to figure out the return conditions, how to tell innermost from outermost
-function innermostLoops(loops: Path[][], delta: number): {outermost: Path[], innermost: Path[][]} {
+function perimeterLoops(loops: Path[][], delta: number): {outermost: Path[], innermost: Path[][]} {
     var countInside: number[] = [];
     for (const loop of loops) {
+        // TODO: stopgap
+        if (loop.length == 0) {
+            continue;
+        }
         var countInsideLoop = 0;
         for (const otherLoop of loops) {
             var adjacent = 0;
@@ -142,8 +253,6 @@ function innermostLoops(loops: Path[][], delta: number): {outermost: Path[], inn
             innermost.push(loops[i]);
         }
     }
-    console.log("outermost", outermost);
-    console.log("innermost", innermost);
     return {outermost, innermost};
 }
 
@@ -177,8 +286,15 @@ function isAdjacent(point: Point, path: Path): boolean {
     return false;
 }
 
+
 function aboutEqual(point1: Point, point2: Point, delta: number): boolean {
     return Math.abs(point1.x - point2.x) < delta && Math.abs(point1.y - point2.y) < delta;
+    //if ('x' in point1 && 'x' in point2) {
+    //    return Math.abs(point1.x - point2.x) < delta && Math.abs(point1.y - point2.y) < delta;
+    //} else {
+    //    console.log("aboutEqual", point1, point2, delta);
+    //    return false;
+    //}
 }
 
 //function filterExteriorPaths(paths: Path[]): Path[] {
