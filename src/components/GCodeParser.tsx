@@ -1,14 +1,26 @@
 'use client';
 
+import { GCodeCommand, LinearMovementCommand, ArcMovementCommand } from '@/types/gcode';
 import { useEffect, useState } from 'react';
 
-export interface GCodeCommand {
-  type: 'G0' | 'G1';
-  x?: number;
-  y?: number;
-  z?: number;
-  e?: number;
-}
+//interface BaseCommand {
+//    code: "G0" | "G1" | "G2" | "G3";
+//    x?: number;
+//    y?: number;
+//    z?: number;
+//    e: boolean;
+//}
+//
+//interface LinearCommand extends BaseCommand {
+//    code: "G0" | "G1";
+//}
+//
+//interface ArcCommand extends BaseCommand {
+//    code: "G2" | "G3";
+//    i?: number;
+//    j?: number;
+//    r?: number;
+//}
 
 export function parseGCode(content: string): GCodeCommand[] {
   const lines = content.split('\n');
@@ -22,12 +34,16 @@ export function parseGCode(content: string): GCodeCommand[] {
     if (parts.length === 0) return null;
 
     const command = parts[0];
-    if (!command.startsWith('G0') && !command.startsWith('G1')) return null;
+    if (command !== 'G0' && command !== 'G1' && command !== 'G2' && command !== 'G3') return null;
 
     // Parse parameters
-    const result: GCodeCommand = {
-      type: command.startsWith('G0') ? 'G0' : 'G1'
-    };
+    let result: LinearMovementCommand | ArcMovementCommand;
+    
+    if (command === 'G0' || command === 'G1') {
+      result = { command: command as "G0" | "G1", parameters: {} };
+    } else {
+      result = { command: command as "G2" | "G3", parameters: {} };
+    }
 
     // Process parameters if they exist
     for (let i = 1; i < parts.length; i++) {
@@ -37,12 +53,12 @@ export function parseGCode(content: string): GCodeCommand[] {
       const key = param[0].toLowerCase();
       const value = Number(param.slice(1));
       if (!isNaN(value)) {
-        result[key as 'x' | 'y' | 'z' | 'e'] = value;
+        result.parameters[key] = value;
       }
     }
 
     return result;
-  }).filter((line): line is GCodeCommand => line !== null);
+  }).filter((line): line is LinearMovementCommand | ArcMovementCommand => line !== null);
 }
 
 export default function GCodeParser() {
@@ -55,7 +71,6 @@ export default function GCodeParser() {
         const content = await response.text();
         const parsed = parseGCode(content);
         setParsedGCode(parsed);
-        //console.log('Parsed G-code:', parsed);
       } catch (error) {
         console.error('Error reading G-code file:', error);
       }

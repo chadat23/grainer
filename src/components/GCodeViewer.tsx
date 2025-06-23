@@ -4,18 +4,6 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
-interface Point {
-  x: number;
-  y: number;
-  z: number;
-  e: number;
-}
-
-interface Path {
-  start: Point;
-  end: Point;
-}
-
 interface GCodeViewerProps {
   paths: Path[];
   defaultColor: string;
