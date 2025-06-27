@@ -74,45 +74,6 @@ export function makePoint(lastPoint: Point, command: GCodeCommand): Point[] {
         }
         case 'G2': {
             // Clockwise arc
-            var i = 0;
-            var j = 0;
-            var e = false;
-            if (command.parameters.x !== undefined && typeof command.parameters.x === 'number') {
-                nextPoint.x = command.parameters.x;
-            }
-            if (command.parameters.y !== undefined && typeof command.parameters.y === 'number') {
-                nextPoint.y = command.parameters.y;
-            }
-            if (command.parameters.i !== undefined && typeof command.parameters.i === 'number') {
-                i = command.parameters.i;
-            }
-            if (command.parameters.j !== undefined && typeof command.parameters.j === 'number') {
-                j = command.parameters.j;
-            }
-            if (command.parameters.e !== undefined && typeof command.parameters.e === 'number' && command.parameters.e > 0) {
-                e = true;  
-            }
-            const centerPoint: Point = { x: lastPoint.x + i, y: lastPoint.y + j, z: lastPoint.z };
-            var points: Point[] = [];
-            var angle = calcAngle(lastPoint, centerPoint, nextPoint);
-            const steps = Math.ceil(Math.abs(angle) / radsPerArcSegment);
-            const stepSize = angle / steps;
-            for (var k = 0; k < steps - 1; k++) {
-                console.log("lastPoint", lastPoint);
-                console.log("nextPoint", nextPoint);
-                console.log("i", i);
-                console.log("j", j);
-                console.log("stepSize", stepSize);
-                const intermediatePoint = calcPoint(lastPoint, centerPoint, nextPoint, stepSize);
-                intermediatePoint.z = lastPoint.z;
-                points.push(intermediatePoint);
-                lastPoint.x = intermediatePoint.x;
-                lastPoint.y = intermediatePoint.y;
-                angle = calcAngle( lastPoint, nextPoint, i, j);
-            }
-            points.push(nextPoint);
-            console.log("points", points);
-            return points;
         }
         case 'G3': {
             // Counter-clockwise arc
@@ -134,11 +95,16 @@ export function makePoint(lastPoint: Point, command: GCodeCommand): Point[] {
             if (command.parameters.e !== undefined && typeof command.parameters.e === 'number' && command.parameters.e > 0) {
                 e = true;  
             }
-            var angle = calcAngle(lastPoint, nextPoint, i, j);
+            const centerPoint: Point = { x: lastPoint.x + i, y: lastPoint.y + j, z: lastPoint.z };
             var points: Point[] = [];
-            while (angle > 2 * radsPerArcSegment) {
-                console.log("angle", radsPerArcSegment*180/Math.PI);
-                const intermediatePoint = calcPoint(lastPoint, nextPoint, i, j, radsPerArcSegment);
+            // Angle is positive for ccw, negative for cw
+            const cw = command.command === 'G2' ? true : false;
+            var angle = calcAngle(lastPoint, centerPoint, nextPoint, cw);
+            console.log("angle", angle);
+            const steps = Math.ceil(Math.abs(angle) / radsPerArcSegment);
+            const stepSize = angle / steps;
+            for (var k = 0; k < steps - 1; k++) {
+                const intermediatePoint = calcPoint(lastPoint, centerPoint, stepSize);
                 intermediatePoint.z = lastPoint.z;
                 points.push(intermediatePoint);
                 lastPoint.x = intermediatePoint.x;
@@ -150,6 +116,9 @@ export function makePoint(lastPoint: Point, command: GCodeCommand): Point[] {
         }
     }
     return [];
+}
+
+function g2G3(lastPoint: Point, nextPoint: Point, command: GCodeCommand): Point[] {
 }
 
 export function calcAngle(start: Point, center: Point, end: Point, cw: boolean): number {
