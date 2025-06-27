@@ -184,12 +184,23 @@ export function calcAngle(start: Point, center: Point, end: Point, cw: boolean):
     return angle;
 }
 
-export function calcPoint(start: Point, center: Point, end: Point, angle: number): Point {
-    const r = (center.x - start.x)**2 + (center.y - start.y)**2
-    const startAngle = Math.atan((start.y - center.y) / (start.x - center.x))
-    const endAngle = angle + startAngle;
-    const x = center.x + (start.x > end.x ? r : -r) * Math.cos(endAngle);
-    const y = center.y + (start.y > end.y ? r : -r) * Math.sin(endAngle);
+// Calculate a point on a circle given a start point, center point, end point, and angle
+export function calcPoint(start: Point, center: Point, angle: number): Point {
+    const r = Math.sqrt((center.x - start.x)**2 + (center.y - start.y)**2);
+    var startAngle = Math.atan((start.y - center.y) / (start.x - center.x))
+    if (start.x < center.x && center.y < start.y) {
+        // quadrant 2
+        startAngle += Math.PI;
+    } else if (start.x < center.x && start.y < center.y) {
+        // quadrant 3
+        startAngle += Math.PI;
+    } else if (center.x < start.x && start.y < center.y) {
+        // quadrant 4
+        startAngle += 2 * Math.PI;
+    }
+    const endAngle = startAngle + angle ;
+    const x = center.x + r * Math.cos(endAngle);
+    const y = center.y + r * Math.sin(endAngle);
     return { x: x, y: y, z: 0};
 }
 

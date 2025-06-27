@@ -117,6 +117,64 @@ import { GCodeCommand, LinearMovementCommand, ArcMovementCommand } from '@/types
 //  });
 //});
 
+describe('calcPoint', () => {
+  it('quadrent 1, cw angle', () => {
+    const result = calcPoint({ x: 1.5, y: 1, z: 0 }, { x: 0, y: 0, z: 0 }, -15*Math.PI/180);
+    expect(result.x).toBeCloseTo(1.708, 3);
+    expect(result.y).toBeCloseTo(0.578, 3);
+    expect(result.z).toBeCloseTo(0, 3);
+  });
+
+  it('quadrent 1, ccw angle', () => {
+    const result = calcPoint({ x: 1.5, y: 1, z: 0 }, { x: 0, y: 0, z: 0 }, 15*Math.PI/180);
+    expect(result.x).toBeCloseTo(1.190, 3);
+    expect(result.y).toBeCloseTo(1.354, 3);
+    expect(result.z).toBeCloseTo(0, 3);
+  });
+
+  it('quadrent 2, cw angle', () => {
+    const result = calcPoint({ x: -1.5, y: 1, z: 0 }, { x: 0, y: 0, z: 0 }, -15*Math.PI/180);
+    expect(result.x).toBeCloseTo(-1.190, 3);
+    expect(result.y).toBeCloseTo(1.354, 3);
+    expect(result.z).toBeCloseTo(0, 3);
+  });
+
+  it('quadrent 2, ccw angle', () => {
+    const result = calcPoint({ x: -1.5, y: 1, z: 0 }, { x: 0, y: 0, z: 0 }, 15*Math.PI/180);
+    expect(result.x).toBeCloseTo(-1.708, 3);
+    expect(result.y).toBeCloseTo(0.578, 3);
+    expect(result.z).toBeCloseTo(0, 3);
+  });
+
+  it('quadrent 3, cw angle', () => {
+    const result = calcPoint({ x: -1.5, y: -1, z: 0 }, { x: 0, y: 0, z: 0 }, -15*Math.PI/180);
+    expect(result.x).toBeCloseTo(-1.708, 3);
+    expect(result.y).toBeCloseTo(-0.578, 3);
+    expect(result.z).toBeCloseTo(0, 3);
+  });
+
+  it('quadrent 3, ccw angle', () => {
+    const result = calcPoint({ x: -1.5, y: -1, z: 0 }, { x: 0, y: 0, z: 0 }, 15*Math.PI/180);
+    expect(result.x).toBeCloseTo(-1.190, 3);
+    expect(result.y).toBeCloseTo(-1.354, 3);
+    expect(result.z).toBeCloseTo(0, 3);
+  });
+
+  it('quadrent 4, cw angle', () => {
+    const result = calcPoint({ x: 1.5, y: -1, z: 0 }, { x: 0, y: 0, z: 0 }, -15*Math.PI/180);
+    expect(result.x).toBeCloseTo(1.190, 3);
+    expect(result.y).toBeCloseTo(-1.354, 3);
+    expect(result.z).toBeCloseTo(0, 3);
+  });
+
+  it('quadrent 4, ccw angle', () => {
+    const result = calcPoint({ x: 1.5, y: -1, z: 0 }, { x: 0, y: 0, z: 0 }, 15*Math.PI/180);
+    expect(result.x).toBeCloseTo(1.708, 3);
+    expect(result.y).toBeCloseTo(-0.578, 3);
+    expect(result.z).toBeCloseTo(0, 3);
+  });
+});
+
 describe('calcAngle', () => {
 // quadrant 1, quadrant 1
   it('quadrant 1, quadrant 1, short way around, ccw', () => {
@@ -314,9 +372,8 @@ describe('calcAngle', () => {
     expect(result).toBeCloseTo(37.87 * Math.PI/180, 3);
   });
 
-  it('quadrant 4, quadrant 4, short way around, cw', () => {
+  it('quadrant 4, quadrant 4, long way around, cw', () => {
     const result = calcAngle({ x: 1, y: -1.5, z: 0 }, { x: 0, y: 0, z: 0 }, { x: 3, y: -1, z: 0 }, true);
-    expect(result).toBeCloseTo(-37.87 * Math.PI/180, 3);
+    expect(result).toBeCloseTo(-(360 - 37.87) * Math.PI/180, 3);
   });
 });
-
