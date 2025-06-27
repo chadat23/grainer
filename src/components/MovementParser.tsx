@@ -33,8 +33,8 @@ export default function MovementParser({ gcode }: { gcode: string }): Line[] {
         }
     });
 
-    //return lines.filter(line => line.isExtrusion === true);
-    return lines;
+    return lines.filter(line => line.isExtrusion === true);
+    //return lines;
   } catch (err) {
     console.error('Error in MovementParser:', err);
     throw err;
