@@ -5,18 +5,19 @@ import { GCodeCommand } from '@/types/gcode';
 import { parseGCode } from './GCodeParser';
 import { Line, Point } from '@/types/spacial';
 
-export default function MovementParser({ gcode }: { gcode: string }): Line[] {
-  const radsPerArcSegment = 2 * 3.2415 / 24;
+const radsPerArcSegment = 2 * Math.PI / 24;
   
+export default function MovementParser({ gcode }: { gcode: string }): Line[] {
   try {
     const parsedGCode = parseGCode(gcode);
 
     var lines: Line[] = [];
-    //var radDelta = radsPerArcSegment / 10;
-    var lastPoint = makePoint({ x: 0, y: 0, z: 0 }, parsedGCode[0], radsPerArcSegment)[0];
+    // This seems weird but it seems to generate the correct output point
+    const firstPoints = makePoint({ x: 0, y: 0, z: 0 }, parsedGCode[0]);
+    var lastPoint: Point = firstPoints[firstPoints.length - 1];
 
     parsedGCode.slice(1).forEach((command) => {
-        const nextPoint = makePoint(lastPoint, command, radsPerArcSegment);
+        const nextPoint = makePoint(lastPoint, command);
         var e = false;
         if (command.parameters.e !== undefined && typeof command.parameters.e === 'number' && command.parameters.e > 0) {
             e = true;
@@ -32,7 +33,6 @@ export default function MovementParser({ gcode }: { gcode: string }): Line[] {
         }
     });
 
-    //console.log("lines", lines);
     //return lines.filter(line => line.isExtrusion === true);
     return lines;
   } catch (err) {
@@ -41,7 +41,7 @@ export default function MovementParser({ gcode }: { gcode: string }): Line[] {
   }
 }
 
-function makePoint(lastPoint: Point, command: GCodeCommand, radsPerArcSegment: number): Point[] {
+export function makePoint(lastPoint: Point, command: GCodeCommand): Point[] {
     var nextPoint: Point = { ...lastPoint };
     switch (command.command) {
         case 'G0': {
@@ -92,10 +92,18 @@ function makePoint(lastPoint: Point, command: GCodeCommand, radsPerArcSegment: n
             if (command.parameters.e !== undefined && typeof command.parameters.e === 'number' && command.parameters.e > 0) {
                 e = true;  
             }
-            var angle = calcAngle(lastPoint, nextPoint, i, j);
+            const centerPoint: Point = { x: lastPoint.x + i, y: lastPoint.y + j, z: lastPoint.z };
             var points: Point[] = [];
-            while (angle > 2 * radsPerArcSegment) {
-                const intermediatePoint = calcPoint(lastPoint, i, j, radsPerArcSegment);
+            var angle = calcAngle(lastPoint, centerPoint, nextPoint);
+            const steps = Math.ceil(Math.abs(angle) / radsPerArcSegment);
+            const stepSize = angle / steps;
+            for (var k = 0; k < steps - 1; k++) {
+                console.log("lastPoint", lastPoint);
+                console.log("nextPoint", nextPoint);
+                console.log("i", i);
+                console.log("j", j);
+                console.log("stepSize", stepSize);
+                const intermediatePoint = calcPoint(lastPoint, centerPoint, nextPoint, stepSize);
                 intermediatePoint.z = lastPoint.z;
                 points.push(intermediatePoint);
                 lastPoint.x = intermediatePoint.x;
@@ -103,6 +111,7 @@ function makePoint(lastPoint: Point, command: GCodeCommand, radsPerArcSegment: n
                 angle = calcAngle( lastPoint, nextPoint, i, j);
             }
             points.push(nextPoint);
+            console.log("points", points);
             return points;
         }
         case 'G3': {
@@ -128,7 +137,8 @@ function makePoint(lastPoint: Point, command: GCodeCommand, radsPerArcSegment: n
             var angle = calcAngle(lastPoint, nextPoint, i, j);
             var points: Point[] = [];
             while (angle > 2 * radsPerArcSegment) {
-                const intermediatePoint = calcPoint(lastPoint, i, j, radsPerArcSegment);
+                console.log("angle", radsPerArcSegment*180/Math.PI);
+                const intermediatePoint = calcPoint(lastPoint, nextPoint, i, j, radsPerArcSegment);
                 intermediatePoint.z = lastPoint.z;
                 points.push(intermediatePoint);
                 lastPoint.x = intermediatePoint.x;
@@ -142,18 +152,44 @@ function makePoint(lastPoint: Point, command: GCodeCommand, radsPerArcSegment: n
     return [];
 }
 
-function calcAngle(start: Point, end: Point, i: number, j: number): number {
-    const startAngle = Math.atan(j / i)
-    const endAngle = Math.atan((end.y - (start.y - j)) / (end.x - (start.x - i)));
-    return endAngle - startAngle;
+export function calcAngle(start: Point, center: Point, end: Point, cw: boolean): number {
+    var startAngle = Math.atan((start.y - center.y) / (start.x - center.x));
+    if (start.x < center.x && center.y < start.y) {
+        // quadrant 2
+        startAngle += Math.PI;
+    } else if (start.x < center.x && start.y < center.y) {
+        // quadrant 3
+        startAngle += Math.PI;
+    } else if (center.x < start.x && start.y < center.y) {
+        // quadrant 4
+        startAngle += 2 * Math.PI;
+    }
+    var endAngle = Math.atan((end.y - center.y) / (end.x - center.x));
+    if (end.x < center.x && center.y < end.y) {
+        // quadrant 2
+        endAngle += Math.PI;
+    } else if (end.x < center.x && end.y < center.y) {
+        // quadrant 3
+        endAngle += Math.PI;
+    } else if (center.x < end.x && end.y < center.y) {
+        // quadrant 4
+        endAngle += 2 * Math.PI;
+    }
+    var angle = endAngle - startAngle;
+    if (cw && angle > 0) {
+        return angle - 2 * Math.PI;
+    } else if (!cw && angle < 0) {
+        return 2 * Math.PI + angle;
+    }
+    return angle;
 }
 
-function calcPoint(start: Point, i: number, j: number, angle: number): Point {
-    const r = ((start.x - i)**2 + (start.y - j)**2)**0.5
-    const startAngle = Math.atan(j / i)
+export function calcPoint(start: Point, center: Point, end: Point, angle: number): Point {
+    const r = (center.x - start.x)**2 + (center.y - start.y)**2
+    const startAngle = Math.atan((start.y - center.y) / (start.x - center.x))
     const endAngle = angle + startAngle;
-    const x = i + r * Math.cos(endAngle);
-    const y = j + r * Math.sin(endAngle);
+    const x = center.x + (start.x > end.x ? r : -r) * Math.cos(endAngle);
+    const y = center.y + (start.y > end.y ? r : -r) * Math.sin(endAngle);
     return { x: x, y: y, z: 0};
 }
 

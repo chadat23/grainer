@@ -208,8 +208,6 @@ export default function GCodeViewer({ paths, defaultColor, minColor, maxColor, c
     // Get the min and max temp from the accent sliders
     const minTemp = accentSliders.reduce((min, slider) => Math.min(min, slider.accentTemp), Infinity);
     const maxTemp = accentSliders.reduce((max, slider) => Math.max(max, slider.accentTemp), -Infinity);
-    console.log("minTemp", minTemp);
-    console.log("maxTemp", maxTemp);
 
     const defaultColorInt = parseInt(defaultColor.slice(1), 16);
     const minColorInt = parseInt(minColor.slice(1), 16);

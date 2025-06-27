@@ -34,7 +34,6 @@ export default function Home() {
   const [accentSliders, setAccentSliders] = useState([{ accentNumb: 1, accentLayer: sliderLayer, accentTemp: sliderTemp}]);
 
   useEffect(() => {
-    console.log("page useEffect called");
     const fetchGCode = async () => {
       try {
         const response = await fetch('/api/gcode');
