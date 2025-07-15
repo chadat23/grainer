@@ -34,7 +34,6 @@ export default function Home() {
         
         const text = await response.text();
         const newPaths = MovementParser({ gcode: text });
-        console.log("newPaths 1234", newPaths);
         setToolPaths(newPaths);
       } catch (err) {
         console.error('Error loading G-code:', err);
