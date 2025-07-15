@@ -3,14 +3,15 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { ToolPath, Vertex } from '@/types/spatial';
 
 interface GCodeViewerProps {
-  paths: Path[];
+  toolPaths: ToolPath[];
   defaultColor: string;
   minColor: string;
   maxColor: string;
-  cameraPoint: Point;
-  lookAtPoint: Point;
+  cameraVertex: Vertex;
+  lookAtVertex: Vertex;
   accentSliders: {
     accentNumb: number;
     accentLayer: number;
@@ -18,7 +19,7 @@ interface GCodeViewerProps {
   }[];
 }
 
-export default function GCodeViewer({ paths, defaultColor, minColor, maxColor, cameraPoint, lookAtPoint, accentSliders }: GCodeViewerProps) {
+export default function GCodeViewer({ toolPaths, defaultColor, minColor, maxColor, cameraVertex, lookAtVertex, accentSliders }: GCodeViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -41,9 +42,10 @@ export default function GCodeViewer({ paths, defaultColor, minColor, maxColor, c
 
     // Calculate bounds
     const bounds = new THREE.Box3();
-    paths.forEach(path => {
-      bounds.expandByPoint(new THREE.Vector3(path.start.x, path.start.y, path.start.z));
-      bounds.expandByPoint(new THREE.Vector3(path.end.x, path.end.y, path.end.z));
+    console.log("toolPaths 12345", toolPaths);
+    toolPaths.forEach(toolPath => {
+      bounds.expandByPoint(new THREE.Vector3(toolPath.start.x, toolPath.start.y, toolPath.start.z));
+      bounds.expandByPoint(new THREE.Vector3(toolPath.end.x, toolPath.end.y, toolPath.end.z));
     });
     const size = bounds.getSize(new THREE.Vector3());
     const center = bounds.getCenter(new THREE.Vector3());
@@ -84,8 +86,8 @@ export default function GCodeViewer({ paths, defaultColor, minColor, maxColor, c
       0.1,
       cameraZ * 10
     );
-    camera.position.set(cameraPoint.x, cameraPoint.y, cameraPoint.z);
-    camera.lookAt(new THREE.Vector3(lookAtPoint.x, lookAtPoint.y, lookAtPoint.z));
+    camera.position.set(cameraVertex.x, cameraVertex.y, cameraVertex.z);
+    camera.lookAt(new THREE.Vector3(lookAtVertex.x, lookAtVertex.y, lookAtVertex.z));
     cameraRef.current = camera;
 
     // Renderer setup
@@ -162,7 +164,7 @@ export default function GCodeViewer({ paths, defaultColor, minColor, maxColor, c
         sceneRef.current.clear();
       }
     };
-  }, [paths, cameraPoint, lookAtPoint]); // Re-run only when paths or initial camera points change
+  }, [toolPaths, cameraVertex, lookAtVertex]); // Re-run only when paths or initial camera points change
 
   // Effect for creating and updating the path geometries (when paths, baseColor, accentColor hange)
   useEffect(() => {
@@ -190,12 +192,12 @@ export default function GCodeViewer({ paths, defaultColor, minColor, maxColor, c
     // Calculate the min and max Z values
     var provisionalMinZ: number | undefined = undefined;
     var provisionalMaxZ: number | undefined = undefined;
-    paths.forEach((path) => {
-      if (provisionalMinZ === undefined || path.start.z < provisionalMinZ) {
-        provisionalMinZ = path.start.z;
+    toolPaths.forEach((toolPath) => {
+      if (provisionalMinZ === undefined || toolPath.start.z < provisionalMinZ) {
+        provisionalMinZ = toolPath.start.z;
       }
-      if (provisionalMaxZ === undefined || path.start.z > provisionalMaxZ) {
-        provisionalMaxZ = path.start.z;
+      if (provisionalMaxZ === undefined || toolPath.start.z > provisionalMaxZ) {
+        provisionalMaxZ = toolPath.start.z;
       }
     });
     if (provisionalMinZ === undefined || provisionalMaxZ === undefined) {
@@ -216,9 +218,9 @@ export default function GCodeViewer({ paths, defaultColor, minColor, maxColor, c
     var accentIndex = 0;
     var color = minColorInt;
 
-    paths.forEach((path) => {
-      const start = new THREE.Vector3(path.start.x, path.start.y, path.start.z);
-      const end = new THREE.Vector3(path.end.x, path.end.y, path.end.z);
+    toolPaths.forEach((toolPath) => {
+      const start = new THREE.Vector3(toolPath.start.x, toolPath.start.y, toolPath.start.z);
+      const end = new THREE.Vector3(toolPath.end.x, toolPath.end.y, toolPath.end.z);
       
       // Calculate the direction and length of the path
       const direction = new THREE.Vector3().subVectors(end, start);
@@ -230,7 +232,7 @@ export default function GCodeViewer({ paths, defaultColor, minColor, maxColor, c
 
       // get color for the path
       color = 0x99FF99;
-      if (path.start.z  * 5 - 0.05 < accentSliders[accentIndex].accentLayer) {
+      if (toolPath.start.z  * 5 - 0.05 < accentSliders[accentIndex].accentLayer) {
         //color = defaultColorInt;
         color = 0xA52A2A;
       }
@@ -287,7 +289,7 @@ export default function GCodeViewer({ paths, defaultColor, minColor, maxColor, c
       sceneRef.current!.add(box);
       pathMeshesRef.current.push(box);
     });
-  }, [paths, minColor, maxColor, cameraPoint, lookAtPoint, accentSliders]);
+  }, [toolPaths, minColor, maxColor, cameraVertex, lookAtVertex, accentSliders]);
 
   return <div ref={containerRef} className="w-full h-full" />;
 }

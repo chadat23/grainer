@@ -1,6 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
 import MovementParser, { makePoint, calcAngle, calcPoint } from '../MovementParser';
-import { Line, Point } from '@/types/spacial';
+import { ToolPath, Vertex } from '@/types/spatial';
 import { GCodeCommand, LinearMovementCommand, ArcMovementCommand } from '@/types/gcode';
 
 describe('MovementParser', () => {
@@ -23,7 +23,6 @@ describe('MovementParser', () => {
     `;
     const result = MovementParser({ gcode });
     expect(result).toHaveLength(56);
-    console.log(result);
     // G1 X20 Y30 Z4 E1.5
     expect(result[0]).toEqual({ start: { x: 20, y: 40, z: 3 }, end: { x: 20, y: 30, z: 4 }, isExtrusion: true });
     // G1 X2 Y3 E1

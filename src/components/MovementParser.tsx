@@ -3,18 +3,18 @@
 import { useEffect, useState } from 'react';
 import { GCodeCommand } from '@/types/gcode';
 import { parseGCode } from './GCodeParser';
-import { Line, Point } from '@/types/spacial';
+import { ToolPath, Vertex } from '@/types/spatial';
 
 const radsPerArcSegment = 2 * Math.PI / 24;
   
-export default function MovementParser({ gcode }: { gcode: string }): Line[] {
+export default function MovementParser({ gcode }: { gcode: string }): ToolPath[] {
   try {
     const parsedGCode = parseGCode(gcode);
 
-    var lines: Line[] = [];
+    var toolPaths: ToolPath[] = [];
     // This seems weird but it seems to generate the correct output point
     const firstPoints = makePoint({ x: 0, y: 0, z: 0 }, parsedGCode[0]);
-    var lastPoint: Point = firstPoints[firstPoints.length - 1];
+    var lastPoint: Vertex = firstPoints[firstPoints.length - 1];
 
     parsedGCode.slice(1).forEach((command) => {
         const nextPoint = makePoint(lastPoint, command);
@@ -23,26 +23,26 @@ export default function MovementParser({ gcode }: { gcode: string }): Line[] {
             e = true;
         }
         if (nextPoint.length === 1) {
-            lines.push({ start: lastPoint, end: nextPoint[0], isExtrusion: e });
+            toolPaths.push({ start: lastPoint, end: nextPoint[0], isExtrusion: e });
             lastPoint = nextPoint[0];
         } else {
             for (const point of nextPoint) {
-                lines.push({ start: lastPoint, end: point, isExtrusion: e });
+                toolPaths.push({ start: lastPoint, end: point, isExtrusion: e });
                 lastPoint = {...point};
             }
         }
     });
 
-    return lines.filter(line => line.isExtrusion === true);
-    //return lines;
+    return toolPaths.filter(toolPath => toolPath.isExtrusion === true);
+    //return toolPaths;
   } catch (err) {
     console.error('Error in MovementParser:', err);
     throw err;
   }
 }
 
-export function makePoint(lastPoint: Point, command: GCodeCommand): Point[] {
-    var nextPoint: Point = { ...lastPoint };
+export function makePoint(lastPoint: Vertex, command: GCodeCommand): Vertex[] {
+    var nextPoint: Vertex = { ...lastPoint };
     switch (command.command) {
         case 'G0': {
         }
@@ -63,7 +63,7 @@ export function makePoint(lastPoint: Point, command: GCodeCommand): Point[] {
         }
         case 'G3': {
             // TODO: Make it handle when a Radius is specified
-            var arcLastPoint: Point = { ...lastPoint };
+            var arcLastPoint: Vertex = { ...lastPoint };
             const cw = command.command === 'G2' ? true : false;
             // G3 is Counter-clockwise arc
             var i = 0;
@@ -81,12 +81,10 @@ export function makePoint(lastPoint: Point, command: GCodeCommand): Point[] {
                 j = command.parameters.j;
             }
             // if there's a P, it can be ignored since x and y are already set
-            const centerPoint: Point = { x: arcLastPoint.x + i, y: arcLastPoint.y + j, z: arcLastPoint.z };
-            var points: Point[] = [];
+            const centerPoint: Vertex = { x: arcLastPoint.x + i, y: arcLastPoint.y + j, z: arcLastPoint.z };
+            var points: Vertex[] = [];
             // Angle is positive for ccw, negative for cw
-            console.log("command", command);
             var angle = command.parameters.p === undefined ? calcAngle(arcLastPoint, centerPoint, nextPoint, cw) : 2 * Math.PI * (cw ? -1 : 1);
-            console.log("angle", angle);
 
             const steps = Math.ceil(Math.abs(angle) / radsPerArcSegment);
             const stepSize = angle / steps;
@@ -105,7 +103,7 @@ export function makePoint(lastPoint: Point, command: GCodeCommand): Point[] {
 }
 
 // Calculate a point on a circle given a start point, center point, end point, and angle
-export function calcPoint(start: Point, center: Point, angle: number): Point {
+export function calcPoint(start: Vertex, center: Vertex, angle: number): Vertex {
     const r = Math.sqrt((center.x - start.x)**2 + (center.y - start.y)**2);
     var startAngle = Math.atan((start.y - center.y) / (start.x - center.x))
     if (start.x < center.x && center.y < start.y) {
@@ -124,7 +122,7 @@ export function calcPoint(start: Point, center: Point, angle: number): Point {
     return { x: x, y: y, z: start.z};
 }
 
-export function calcAngle(start: Point, center: Point, end: Point, cw: boolean): number {
+export function calcAngle(start: Vertex, center: Vertex, end: Vertex, cw: boolean): number {
     var startAngle = Math.atan((start.y - center.y) / (start.x - center.x));
     if (start.x < center.x && center.y < start.y) {
         // quadrant 2

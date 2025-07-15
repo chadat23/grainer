@@ -3,21 +3,10 @@
 import { useState, useEffect } from 'react';
 import GCodeViewer from '@/components/GCodeViewer';
 import MovementParser from '@/components/MovementParser';
+import { ToolPath, Vertex } from '@/types/spatial';
 
-interface Point {
-  x: number;
-  y: number;
-  z: number;
-  e: number;
-}
-
-interface Path {
-  start: Point;
-  end: Point;
-}
-
-const cameraPoint: Point = { x: 150, y: 150, z: 150, e: 0 };
-const lookAtPoint: Point = { x: 0, y: 0, z: 0, e: 0 };
+const cameraVertex: Vertex = { x: 150, y: 150, z: 150 };
+const lookAtVertex: Vertex = { x: 0, y: 0, z: 0 };
 const sliderTemp = 200;
 const sliderMinTemp = 170;
 const sliderMaxTemp = 250;
@@ -26,7 +15,7 @@ const sliderMinLayer = 1;
 const sliderMaxLayer = 100;
 
 export default function Home() {
-  const [paths, setPaths] = useState<Path[]>([]);
+  const [toolPaths, setToolPaths] = useState<ToolPath[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [defaultColor, setDefaultColor] = useState('#99FF99'); // Default tan color
   const [minColor, setMinColor] = useState('#DEB887'); // Default tan color
@@ -45,7 +34,8 @@ export default function Home() {
         
         const text = await response.text();
         const newPaths = MovementParser({ gcode: text });
-        setPaths(newPaths);
+        console.log("newPaths 1234", newPaths);
+        setToolPaths(newPaths);
       } catch (err) {
         console.error('Error loading G-code:', err);
         setError(err instanceof Error ? err.message : 'Failed to load G-code file');
@@ -204,7 +194,7 @@ export default function Home() {
         </div>
       </div>
       <div className="w-2/3 h-full">
-        <GCodeViewer paths={paths} defaultColor={defaultColor} minColor={minColor} maxColor={maxColor} cameraPoint={cameraPoint} lookAtPoint={lookAtPoint} accentSliders={accentSliders}/>
+        <GCodeViewer toolPaths={toolPaths} defaultColor={defaultColor} minColor={minColor} maxColor={maxColor} cameraVertex={cameraVertex} lookAtVertex={lookAtVertex} accentSliders={accentSliders}/>
       </div>
     </main>
   );
