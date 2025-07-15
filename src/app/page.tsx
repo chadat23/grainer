@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import GCodeViewer from '@/components/GCodeViewer';
-import MovementParser from '@/components/MovementParser';
+import ToolPathParser from '@/components/ToolPathParser';
 import { ToolPath, Vertex } from '@/types/spatial';
 
 const cameraVertex: Vertex = { x: 150, y: 150, z: 150 };
@@ -33,7 +33,7 @@ export default function Home() {
         }
         
         const text = await response.text();
-        const newPaths = MovementParser({ gcode: text });
+        const newPaths = ToolPathParser({ gcode: text });
         setToolPaths(newPaths);
       } catch (err) {
         console.error('Error loading G-code:', err);
