@@ -28,7 +28,7 @@ export default function MovementParser({ gcode }: { gcode: string }): Line[] {
         } else {
             for (const point of nextPoint) {
                 lines.push({ start: lastPoint, end: point, isExtrusion: e });
-                lastPoint = point;
+                lastPoint = {...point};
             }
         }
     });
@@ -45,16 +45,6 @@ export function makePoint(lastPoint: Point, command: GCodeCommand): Point[] {
     var nextPoint: Point = { ...lastPoint };
     switch (command.command) {
         case 'G0': {
-            if (command.parameters.x !== undefined && typeof command.parameters.x === 'number') {
-                nextPoint.x = command.parameters.x;
-            } 
-            if (command.parameters.y !== undefined && typeof command.parameters.y === 'number') {
-                nextPoint.y = command.parameters.y;
-            }
-            if (command.parameters.z !== undefined && typeof command.parameters.z === 'number') {
-                nextPoint.z = command.parameters.z;
-            }
-            return [nextPoint];
         }
         case 'G1': {
             if (command.parameters.x !== undefined && typeof command.parameters.x === 'number') {
@@ -66,20 +56,17 @@ export function makePoint(lastPoint: Point, command: GCodeCommand): Point[] {
             if (command.parameters.z !== undefined && typeof command.parameters.z === 'number') {
                 nextPoint.z = command.parameters.z;
             }
-            var e = false;
-            if (command.parameters.e !== undefined && typeof command.parameters.e === 'number' && command.parameters.e > 0) {
-                e = true;  
-            }
             return [nextPoint];
         }
         case 'G2': {
             // Clockwise arc
         }
         case 'G3': {
-            // Counter-clockwise arc
+            var arcLastPoint: Point = { ...lastPoint };
+            const cw = command.command === 'G2' ? true : false;
+            // G3 is Counter-clockwise arc
             var i = 0;
             var j = 0;
-            var e = false;
             if (command.parameters.x !== undefined && typeof command.parameters.x === 'number') {
                 nextPoint.x = command.parameters.x;
             }
@@ -92,24 +79,19 @@ export function makePoint(lastPoint: Point, command: GCodeCommand): Point[] {
             if (command.parameters.j !== undefined && typeof command.parameters.j === 'number') {
                 j = command.parameters.j;
             }
-            if (command.parameters.e !== undefined && typeof command.parameters.e === 'number' && command.parameters.e > 0) {
-                e = true;  
-            }
-            const centerPoint: Point = { x: lastPoint.x + i, y: lastPoint.y + j, z: lastPoint.z };
+            // if there's a P, it can be ignored since x and y are already set
+            const centerPoint: Point = { x: arcLastPoint.x + i, y: arcLastPoint.y + j, z: arcLastPoint.z };
             var points: Point[] = [];
             // Angle is positive for ccw, negative for cw
-            const cw = command.command === 'G2' ? true : false;
-            var angle = calcAngle(lastPoint, centerPoint, nextPoint, cw);
-            console.log("angle", angle);
+            var angle = calcAngle(arcLastPoint, centerPoint, nextPoint, cw);
             const steps = Math.ceil(Math.abs(angle) / radsPerArcSegment);
             const stepSize = angle / steps;
             for (var k = 0; k < steps - 1; k++) {
-                const intermediatePoint = calcPoint(lastPoint, centerPoint, stepSize);
-                intermediatePoint.z = lastPoint.z;
+                const intermediatePoint = calcPoint(arcLastPoint, centerPoint, stepSize);
                 points.push(intermediatePoint);
-                lastPoint.x = intermediatePoint.x;
-                lastPoint.y = intermediatePoint.y;
-                angle = calcAngle( lastPoint, nextPoint, i, j);
+                arcLastPoint.x = intermediatePoint.x;
+                arcLastPoint.y = intermediatePoint.y;
+                angle = calcAngle( arcLastPoint, centerPoint, nextPoint, cw);
             }
             points.push(nextPoint);
             return points;
@@ -118,7 +100,24 @@ export function makePoint(lastPoint: Point, command: GCodeCommand): Point[] {
     return [];
 }
 
-function g2G3(lastPoint: Point, nextPoint: Point, command: GCodeCommand): Point[] {
+// Calculate a point on a circle given a start point, center point, end point, and angle
+export function calcPoint(start: Point, center: Point, angle: number): Point {
+    const r = Math.sqrt((center.x - start.x)**2 + (center.y - start.y)**2);
+    var startAngle = Math.atan((start.y - center.y) / (start.x - center.x))
+    if (start.x < center.x && center.y < start.y) {
+        // quadrant 2
+        startAngle += Math.PI;
+    } else if (start.x < center.x && start.y < center.y) {
+        // quadrant 3
+        startAngle += Math.PI;
+    } else if (center.x < start.x && start.y < center.y) {
+        // quadrant 4
+        startAngle += 2 * Math.PI;
+    }
+    const endAngle = startAngle + angle ;
+    const x = center.x + r * Math.cos(endAngle);
+    const y = center.y + r * Math.sin(endAngle);
+    return { x: x, y: y, z: start.z};
 }
 
 export function calcAngle(start: Point, center: Point, end: Point, cw: boolean): number {
@@ -151,26 +150,6 @@ export function calcAngle(start: Point, center: Point, end: Point, cw: boolean):
         return 2 * Math.PI + angle;
     }
     return angle;
-}
-
-// Calculate a point on a circle given a start point, center point, end point, and angle
-export function calcPoint(start: Point, center: Point, angle: number): Point {
-    const r = Math.sqrt((center.x - start.x)**2 + (center.y - start.y)**2);
-    var startAngle = Math.atan((start.y - center.y) / (start.x - center.x))
-    if (start.x < center.x && center.y < start.y) {
-        // quadrant 2
-        startAngle += Math.PI;
-    } else if (start.x < center.x && start.y < center.y) {
-        // quadrant 3
-        startAngle += Math.PI;
-    } else if (center.x < start.x && start.y < center.y) {
-        // quadrant 4
-        startAngle += 2 * Math.PI;
-    }
-    const endAngle = startAngle + angle ;
-    const x = center.x + r * Math.cos(endAngle);
-    const y = center.y + r * Math.sin(endAngle);
-    return { x: x, y: y, z: 0};
 }
 
 //function filterExteriorPaths(points: Point[], delta: number): Line[] {

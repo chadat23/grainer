@@ -74,6 +74,36 @@ import { GCodeCommand, LinearMovementCommand, ArcMovementCommand } from '@/types
 //  });
 //});
 
+describe('MovementParser', () => {
+  it('should parse all commands', () => {
+    const gcode = `
+      ; G0 command
+      G0 X10 Y20 Z3
+      G0 X20 Y40
+      G1 X20 Y30 Z4 E1.5
+      G1 X2 Y3 E1
+      G2 X5 Y6 I5.4686 J-2.4686 R3 E1.3
+      G3 X40 Y50 Z6 I7 J8 R9
+    `;
+    const result = MovementParser({ gcode });
+    //expect(result).toHaveLength(4);
+    // G0 X20 Y40
+    expect(result[0]).toEqual({ start: { x: 10, y: 20, z: 3 }, end: { x: 20, y: 40, z: 3 }, isExtrusion: false });
+    // G1 X20 Y30 Z4 E1.5
+    expect(result[1]).toEqual({ start: { x: 20, y: 40, z: 3 }, end: { x: 20, y: 30, z: 4 }, isExtrusion: true });
+    // G1 X2 Y3 E1
+    expect(result[2]).toEqual({ start: { x: 20, y: 30, z: 4 }, end: { x: 2, y: 3, z: 4 }, isExtrusion: true });
+    //expect(result[2]).toEqual({ start: { x: 20, y: 30, z: 4 }, end: { x: 3.7665424544076838, y: 5.253088453204317, z: 4 }, isExtrusion: true });
+    // G2 X5 Y6 I5.4686 J-2.4686 R3
+    expect(result[3].start).toEqual({ x: 2, y: 3, z: 4 });
+    expect(result[3].end.x).toBeCloseTo(2.747, 3);
+    expect(result[3].end.y).toBeCloseTo(4.233, 3);
+    expect(result[3].isExtrusion).toBe(true);
+    //expect(result[3]).toEqual({ start: { x: 30, y: 40, z: 5 }, end: { x: 40, y: 50, z: 6 }, isExtrusion: true });
+    //expect(result[4]).toEqual({ start: { x: 40, y: 50, z: 6 }, end: { x: 50, y: 60, z: 7 }, isExtrusion: true });
+  });
+});
+
 describe('makePoint', () => {
   it('should parse G0 command', () => {
     const command: LinearMovementCommand = {
@@ -98,6 +128,24 @@ describe('makePoint', () => {
   });
 
   it('should parse G2 command', () => {
+    const command: ArcMovementCommand = {
+      command: 'G2',
+      parameters: { x: 5, y: 6, z: 4, i: 5.4686, j: -2.4686, r: 3 }
+    };
+    const result = makePoint({ x: 2, y: 3, z: 4 }, command);
+    expect(result).toHaveLength(3);
+    expect(result[0].x).toBeCloseTo(2.747, 3);
+    expect(result[0].y).toBeCloseTo(4.233, 3);
+    expect(result[0].z).toBeCloseTo(4, 3);
+    expect(result[1].x).toBeCloseTo(3.767, 3);
+    expect(result[1].y).toBeCloseTo(5.253, 3);
+    expect(result[1].z).toBeCloseTo(4, 3);
+    expect(result[2].x).toBeCloseTo(5, 3);
+    expect(result[2].y).toBeCloseTo(6, 3);
+    expect(result[2].z).toBeCloseTo(4, 3);
+  });
+
+  it('should parse G2 real command', () => {
     const command: ArcMovementCommand = {
       command: 'G2',
       parameters: { x: 5, y: 6, z: 4, i: 5.4686, j: -2.4686, r: 3 }
