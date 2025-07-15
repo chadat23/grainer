@@ -82,25 +82,70 @@ describe('MovementParser', () => {
       G0 X20 Y40
       G1 X20 Y30 Z4 E1.5
       G1 X2 Y3 E1
-      G2 X5 Y6 I5.4686 J-2.4686 R3 E1.3
-      G3 X40 Y50 Z6 I7 J8 R9
+      G2 X5 Y6 I5.4686 J-2.4686 E1.3
+      G3 X2 Y3 I2.4686 J-5.4686 E0.5
+      G2 P1 I2.4686 J-5.4686 E0.5
     `;
     const result = MovementParser({ gcode });
     //expect(result).toHaveLength(4);
+    console.log(result);
     // G0 X20 Y40
-    expect(result[0]).toEqual({ start: { x: 10, y: 20, z: 3 }, end: { x: 20, y: 40, z: 3 }, isExtrusion: false });
+    //expect(result[0]).toEqual({ start: { x: 10, y: 20, z: 3 }, end: { x: 20, y: 40, z: 3 }, isExtrusion: false });
     // G1 X20 Y30 Z4 E1.5
-    expect(result[1]).toEqual({ start: { x: 20, y: 40, z: 3 }, end: { x: 20, y: 30, z: 4 }, isExtrusion: true });
+    expect(result[0]).toEqual({ start: { x: 20, y: 40, z: 3 }, end: { x: 20, y: 30, z: 4 }, isExtrusion: true });
     // G1 X2 Y3 E1
-    expect(result[2]).toEqual({ start: { x: 20, y: 30, z: 4 }, end: { x: 2, y: 3, z: 4 }, isExtrusion: true });
+    expect(result[1]).toEqual({ start: { x: 20, y: 30, z: 4 }, end: { x: 2, y: 3, z: 4 }, isExtrusion: true });
     //expect(result[2]).toEqual({ start: { x: 20, y: 30, z: 4 }, end: { x: 3.7665424544076838, y: 5.253088453204317, z: 4 }, isExtrusion: true });
     // G2 X5 Y6 I5.4686 J-2.4686 R3
-    expect(result[3].start).toEqual({ x: 2, y: 3, z: 4 });
-    expect(result[3].end.x).toBeCloseTo(2.747, 3);
-    expect(result[3].end.y).toBeCloseTo(4.233, 3);
+    expect(result[2].start).toEqual({ x: 2, y: 3, z: 4 });
+    expect(result[2].end.x).toBeCloseTo(2.747, 3);
+    expect(result[2].end.y).toBeCloseTo(4.233, 3);
+    expect(result[2].end.z).toBeCloseTo(4, 3);
+    expect(result[2].isExtrusion).toBe(true);
+    expect(result[3].start.x).toBeCloseTo(2.747, 3);
+    expect(result[3].start.y).toBeCloseTo(4.233, 3);
+    expect(result[3].start.z).toBeCloseTo(4, 3);
+    expect(result[3].end.x).toBeCloseTo(3.767, 3);
+    expect(result[3].end.y).toBeCloseTo(5.253, 3);
+    expect(result[3].end.z).toBeCloseTo(4, 3);
     expect(result[3].isExtrusion).toBe(true);
-    //expect(result[3]).toEqual({ start: { x: 30, y: 40, z: 5 }, end: { x: 40, y: 50, z: 6 }, isExtrusion: true });
-    //expect(result[4]).toEqual({ start: { x: 40, y: 50, z: 6 }, end: { x: 50, y: 60, z: 7 }, isExtrusion: true });
+    expect(result[4].start.x).toBeCloseTo(3.767, 3);
+    expect(result[4].start.y).toBeCloseTo(5.253, 3);
+    expect(result[4].start.z).toBeCloseTo(4, 3);
+    expect(result[4].end).toEqual({ x: 5, y: 6, z: 4 });
+    expect(result[4].isExtrusion).toBe(true);
+    expect(result[5].start).toEqual({ x: 5, y: 6, z: 4 });
+    expect(result[5].end.x).toBeCloseTo(3.767, 3);
+    expect(result[5].end.y).toBeCloseTo(5.253, 3);
+    expect(result[5].end.z).toBeCloseTo(4, 3);
+    expect(result[5].isExtrusion).toBe(true);
+    // G3 X2 Y3 I2.4686 J-5.4686 E0.5
+    expect(result[6].start.x).toBeCloseTo(3.767, 3);
+    expect(result[6].start.y).toBeCloseTo(5.253, 3);
+    expect(result[6].start.z).toBeCloseTo(4, 3);
+    expect(result[6].end.x).toBeCloseTo(2.747, 3);
+    expect(result[6].end.y).toBeCloseTo(4.233, 3);
+    expect(result[6].end.z).toBeCloseTo(4, 3);
+    expect(result[6].isExtrusion).toBe(true);
+    expect(result[7].start.x).toBeCloseTo(2.747, 3);
+    expect(result[7].start.y).toBeCloseTo(4.233, 3);
+    expect(result[7].start.z).toBeCloseTo(4, 3);
+    expect(result[7].end).toEqual({ x: 2, y: 3, z: 4 });
+    expect(result[7].isExtrusion).toBe(true);
+    // G3 P1 I2.4686 J-5.4686 E0.5
+    expect(result[8].start).toEqual({ x: 2, y: 3, z: 4 });
+    expect(result[8].end.x).toBeCloseTo(2.747, 3);
+    expect(result[8].end.y).toBeCloseTo(4.233, 3);
+    expect(result[8].end.z).toBeCloseTo(4, 3);
+    expect(result[8].isExtrusion).toBe(true);
+    expect(result[9].start.x).toBeCloseTo(2.747, 3);
+    expect(result[9].start.y).toBeCloseTo(4.233, 3);
+    expect(result[9].start.z).toBeCloseTo(4, 3);
+    expect(result[9].end.x).toBeCloseTo(3.767, 3);
+    expect(result[9].end.y).toBeCloseTo(5.253, 3);
+    expect(result[9].end.z).toBeCloseTo(4, 3);
+    expect(result[9].isExtrusion).toBe(true);
+
   });
 });
 

@@ -62,6 +62,7 @@ export function makePoint(lastPoint: Point, command: GCodeCommand): Point[] {
             // Clockwise arc
         }
         case 'G3': {
+            // TODO: Make it handle when a Radius is specified
             var arcLastPoint: Point = { ...lastPoint };
             const cw = command.command === 'G2' ? true : false;
             // G3 is Counter-clockwise arc
@@ -83,7 +84,10 @@ export function makePoint(lastPoint: Point, command: GCodeCommand): Point[] {
             const centerPoint: Point = { x: arcLastPoint.x + i, y: arcLastPoint.y + j, z: arcLastPoint.z };
             var points: Point[] = [];
             // Angle is positive for ccw, negative for cw
-            var angle = calcAngle(arcLastPoint, centerPoint, nextPoint, cw);
+            console.log("command", command);
+            var angle = command.parameters.p === undefined ? calcAngle(arcLastPoint, centerPoint, nextPoint, cw) : 2 * Math.PI * (cw ? -1 : 1);
+            console.log("angle", angle);
+
             const steps = Math.ceil(Math.abs(angle) / radsPerArcSegment);
             const stepSize = angle / steps;
             for (var k = 0; k < steps - 1; k++) {
