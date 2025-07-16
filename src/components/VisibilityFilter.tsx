@@ -118,32 +118,43 @@ import { ToolPath, Vertex } from '@/types/spatial';
 // Checks to see if a virtex is to the left of, and adjacent to, the tool path
 // Only pays attention to the x and y-axes, not the z-axis
 export function isAdjacent(vertex: Vertex, toolPath: ToolPath): boolean {
-    if (vertex.y === toolPath.start.y) {
+    if (Math.abs(vertex.y - toolPath.start.y) < 0.00001 && vertex.x < toolPath.start.x) {
         return true;
     }
-    if (vertex.y === toolPath.end.y) {
+
+    if (Math.abs(vertex.y - toolPath.end.y) < 0.00001) {
         return false;
     }
     
     const minY = Math.min(toolPath.start.y, toolPath.end.y); 
-    if (minY > vertex.y && minY > vertex.y) {
+    if (minY > vertex.y) {
         return false;
     }
 
     const maxY = Math.max(toolPath.start.y, toolPath.end.y);
-    if (maxY < vertex.y && maxY < vertex.y) {
+    if (maxY < vertex.y) {
         return false;
+    }
+
+    if (Math.abs(toolPath.start.x - toolPath.end.x) < 0.00001) {
+        if (vertex.x < toolPath.start.x) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     const slope = (toolPath.end.y - toolPath.start.y) / (toolPath.end.x - toolPath.start.x);
     const yIntercept = toolPath.start.y - slope * toolPath.start.x;
     const x = (vertex.y - yIntercept) / slope;
     if (x < vertex.x) {
-        return true;
+        return false;
     }
-    return false;
+    return true;
 }
 
+// Checks to see if two vertices are about equal
+// Only pays attention to the x and y-axes, not the z-axis
 export function aboutEqual(vertex1: Vertex, vertex2: Vertex, delta: number): boolean {
     return (Math.abs(vertex1.x - vertex2.x) < delta) && (Math.abs(vertex1.y - vertex2.y) < delta);
 }
