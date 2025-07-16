@@ -1,6 +1,140 @@
 import { describe, it, expect } from '@jest/globals';
 import { ToolPath, Vertex } from '@/types/spatial';
-import { aboutEqual, isAdjacent } from '../VisibilityFilter';
+import { aboutEqual, isAdjacent, findToolPathLoops } from '../VisibilityFilter';
+
+describe('findToolPathLoops', () => {
+  it('should return an empty array since there are no loops, all jogs', () => {
+    const toolPaths: ToolPath[] = [
+      { start: { x: 0, y: 0, z: 0 }, end: { x: 1, y: 0, z: 0 }, isExtrusion: false },
+      { start: { x: 1, y: 0, z: 0 }, end: { x: 1, y: 1, z: 0 }, isExtrusion: false },
+      { start: { x: 1, y: 1, z: 0 }, end: { x: 0, y: 1, z: 0 }, isExtrusion: false },
+      { start: { x: 0, y: 1, z: 0 }, end: { x: 0, y: 0, z: 0 }, isExtrusion: false },
+    ];
+    const loops: ToolPath[][] = [];
+    expect(findToolPathLoops(toolPaths)).toEqual(loops);
+  });
+
+  it('should return itself since its just a loop', () => {
+    const toolPaths: ToolPath[] = [
+      { start: { x: 0, y: 0, z: 0 }, end: { x: 1, y: 0, z: 0 }, isExtrusion: true },
+      { start: { x: 1, y: 0, z: 0 }, end: { x: 1, y: 1, z: 0 }, isExtrusion: true },
+      { start: { x: 1, y: 1, z: 0 }, end: { x: 0, y: 1, z: 0 }, isExtrusion: true },
+      { start: { x: 0, y: 1, z: 0 }, end: { x: 0, y: 0, z: 0 }, isExtrusion: true },
+    ];
+    const loops: ToolPath[][] = [[
+      { start: { x: 0, y: 0, z: 0 }, end: { x: 1, y: 0, z: 0 }, isExtrusion: true },
+      { start: { x: 1, y: 0, z: 0 }, end: { x: 1, y: 1, z: 0 }, isExtrusion: true },
+      { start: { x: 1, y: 1, z: 0 }, end: { x: 0, y: 1, z: 0 }, isExtrusion: true },
+      { start: { x: 0, y: 1, z: 0 }, end: { x: 0, y: 0, z: 0 }, isExtrusion: true },
+    ]];
+    expect(findToolPathLoops(toolPaths)).toEqual(loops);
+  });
+
+  it('should strip the leading jog', () => {
+    const toolPaths: ToolPath[] = [
+      { start: { x: 1, y: 0, z: 0 }, end: { x: 0, y: 0, z: 0 }, isExtrusion: false },
+      { start: { x: 0, y: 0, z: 0 }, end: { x: 1, y: 0, z: 0 }, isExtrusion: true },
+      { start: { x: 1, y: 0, z: 0 }, end: { x: 1, y: 1, z: 0 }, isExtrusion: true },
+      { start: { x: 1, y: 1, z: 0 }, end: { x: 0, y: 1, z: 0 }, isExtrusion: true },
+      { start: { x: 0, y: 1, z: 0 }, end: { x: 0, y: 0, z: 0 }, isExtrusion: true },
+    ];
+    const loops: ToolPath[][] = [[
+      { start: { x: 0, y: 0, z: 0 }, end: { x: 1, y: 0, z: 0 }, isExtrusion: true },
+      { start: { x: 1, y: 0, z: 0 }, end: { x: 1, y: 1, z: 0 }, isExtrusion: true },
+      { start: { x: 1, y: 1, z: 0 }, end: { x: 0, y: 1, z: 0 }, isExtrusion: true },
+      { start: { x: 0, y: 1, z: 0 }, end: { x: 0, y: 0, z: 0 }, isExtrusion: true },
+    ]];
+    expect(findToolPathLoops(toolPaths)).toEqual(loops);
+  });
+
+  it('should strip the trailing jog', () => {
+    const toolPaths: ToolPath[] = [
+      { start: { x: 1, y: 0, z: 0 }, end: { x: 0, y: 0, z: 0 }, isExtrusion: false },
+      { start: { x: 0, y: 0, z: 0 }, end: { x: 1, y: 0, z: 0 }, isExtrusion: true },
+      { start: { x: 1, y: 0, z: 0 }, end: { x: 1, y: 1, z: 0 }, isExtrusion: true },
+      { start: { x: 1, y: 1, z: 0 }, end: { x: 0, y: 1, z: 0 }, isExtrusion: true },
+      { start: { x: 0, y: 1, z: 0 }, end: { x: 0, y: 0, z: 0 }, isExtrusion: true },
+      { start: { x: 0, y: 0, z: 0 }, end: { x: 0, y: 0, z: 2 }, isExtrusion: false },
+    ];
+    const loops: ToolPath[][] = [[
+      { start: { x: 0, y: 0, z: 0 }, end: { x: 1, y: 0, z: 0 }, isExtrusion: true },
+      { start: { x: 1, y: 0, z: 0 }, end: { x: 1, y: 1, z: 0 }, isExtrusion: true },
+      { start: { x: 1, y: 1, z: 0 }, end: { x: 0, y: 1, z: 0 }, isExtrusion: true },
+      { start: { x: 0, y: 1, z: 0 }, end: { x: 0, y: 0, z: 0 }, isExtrusion: true },
+    ]];
+    expect(findToolPathLoops(toolPaths)).toEqual(loops);
+  });
+
+  it('should ignore the trailing random extrusions', () => {
+    const toolPaths: ToolPath[] = [
+      { start: { x: 1, y: 0, z: 0 }, end: { x: 0, y: 0, z: 0 }, isExtrusion: false },
+      { start: { x: 0, y: 0, z: 0 }, end: { x: 8, y: 0, z: 0 }, isExtrusion: true },
+      { start: { x: 8, y: 0, z: 0 }, end: { x: 8, y: 8, z: 0 }, isExtrusion: true },
+      { start: { x: 8, y: 8, z: 0 }, end: { x: 0, y: 8, z: 0 }, isExtrusion: true },
+      { start: { x: 0, y: 8, z: 0 }, end: { x: 0, y: 0, z: 0 }, isExtrusion: true },
+      { start: { x: 0, y: 0, z: 0 }, end: { x: 1, y: 1, z: 0 }, isExtrusion: false },
+      { start: { x: 1, y: 1, z: 0 }, end: { x: 2, y: 1, z: 0 }, isExtrusion: true },
+      { start: { x: 2, y: 1, z: 0 }, end: { x: 2, y: 2, z: 0 }, isExtrusion: true },
+    ];
+    const loops: ToolPath[][] = [[
+      { start: { x: 0, y: 0, z: 0 }, end: { x: 8, y: 0, z: 0 }, isExtrusion: true },
+      { start: { x: 8, y: 0, z: 0 }, end: { x: 8, y: 8, z: 0 }, isExtrusion: true },
+      { start: { x: 8, y: 8, z: 0 }, end: { x: 0, y: 8, z: 0 }, isExtrusion: true },
+      { start: { x: 0, y: 8, z: 0 }, end: { x: 0, y: 0, z: 0 }, isExtrusion: true },
+    ]];
+    expect(findToolPathLoops(toolPaths)).toEqual(loops);
+  });
+
+  it('should ignore the trailing random extrusions, and add additional loops', () => {
+    const toolPaths: ToolPath[] = [
+      { start: { x: 1, y: 0, z: 0 }, end: { x: 0, y: 0, z: 0 }, isExtrusion: false },
+      { start: { x: 0, y: 0, z: 0 }, end: { x: 8, y: 0, z: 0 }, isExtrusion: true },
+      { start: { x: 8, y: 0, z: 0 }, end: { x: 8, y: 8, z: 0 }, isExtrusion: true },
+      { start: { x: 8, y: 8, z: 0 }, end: { x: 0, y: 8, z: 0 }, isExtrusion: true },
+      { start: { x: 0, y: 8, z: 0 }, end: { x: 0, y: 0, z: 0 }, isExtrusion: true },
+      { start: { x: 0, y: 0, z: 0 }, end: { x: 1, y: 1, z: 0 }, isExtrusion: false },
+      { start: { x: 1, y: 1, z: 0 }, end: { x: 2, y: 1, z: 0 }, isExtrusion: true },
+      { start: { x: 2, y: 1, z: 0 }, end: { x: 2, y: 2, z: 0 }, isExtrusion: true },
+      { start: { x: 2, y: 2, z: 0 }, end: { x: 1, y: 2, z: 0 }, isExtrusion: true },
+      { start: { x: 1, y: 2, z: 0 }, end: { x: 1, y: 1, z: 0 }, isExtrusion: true },
+      { start: { x: 1, y: 1, z: 0 }, end: { x: 1, y: 4, z: 0 }, isExtrusion: false },
+      { start: { x: 1, y: 4, z: 0 }, end: { x: 4, y: 4, z: 0 }, isExtrusion: true },
+      { start: { x: 4, y: 4, z: 0 }, end: { x: 4, y: 2, z: 0 }, isExtrusion: true },
+      { start: { x: 4, y: 2, z: 0 }, end: { x: 3, y: 1, z: 0 }, isExtrusion: false },
+      { start: { x: 3, y: 1, z: 0 }, end: { x: 6, y: 1, z: 0 }, isExtrusion: true },
+      { start: { x: 6, y: 1, z: 0 }, end: { x: 6, y: 4, z: 0 }, isExtrusion: true },
+      { start: { x: 6, y: 4, z: 0 }, end: { x: 3, y: 4, z: 0 }, isExtrusion: true },
+      { start: { x: 3, y: 4, z: 0 }, end: { x: 3, y: 1, z: 0 }, isExtrusion: true },
+      { start: { x: 3, y: 1, z: 0 }, end: { x: 4, y: 2, z: 0 }, isExtrusion: false },
+      { start: { x: 4, y: 2, z: 0 }, end: { x: 5, y: 2, z: 0 }, isExtrusion: true },
+      { start: { x: 5, y: 2, z: 0 }, end: { x: 5, y: 3, z: 0 }, isExtrusion: true },
+      { start: { x: 5, y: 3, z: 0 }, end: { x: 4, y: 3, z: 0 }, isExtrusion: true },
+      { start: { x: 4, y: 3, z: 0 }, end: { x: 4, y: 2, z: 0 }, isExtrusion: true },
+    ];
+    const loops: ToolPath[][] = [[
+      { start: { x: 0, y: 0, z: 0 }, end: { x: 8, y: 0, z: 0 }, isExtrusion: true },
+      { start: { x: 8, y: 0, z: 0 }, end: { x: 8, y: 8, z: 0 }, isExtrusion: true },
+      { start: { x: 8, y: 8, z: 0 }, end: { x: 0, y: 8, z: 0 }, isExtrusion: true },
+      { start: { x: 0, y: 8, z: 0 }, end: { x: 0, y: 0, z: 0 }, isExtrusion: true },
+    ], [
+      { start: { x: 1, y: 1, z: 0 }, end: { x: 2, y: 1, z: 0 }, isExtrusion: true },
+      { start: { x: 2, y: 1, z: 0 }, end: { x: 2, y: 2, z: 0 }, isExtrusion: true },
+      { start: { x: 2, y: 2, z: 0 }, end: { x: 1, y: 2, z: 0 }, isExtrusion: true },
+      { start: { x: 1, y: 2, z: 0 }, end: { x: 1, y: 1, z: 0 }, isExtrusion: true },
+    ], [
+      { start: { x: 3, y: 1, z: 0 }, end: { x: 6, y: 1, z: 0 }, isExtrusion: true },
+      { start: { x: 6, y: 1, z: 0 }, end: { x: 6, y: 4, z: 0 }, isExtrusion: true },
+      { start: { x: 6, y: 4, z: 0 }, end: { x: 3, y: 4, z: 0 }, isExtrusion: true },
+      { start: { x: 3, y: 4, z: 0 }, end: { x: 3, y: 1, z: 0 }, isExtrusion: true },
+    ], [
+      { start: { x: 4, y: 2, z: 0 }, end: { x: 5, y: 2, z: 0 }, isExtrusion: true },
+      { start: { x: 5, y: 2, z: 0 }, end: { x: 5, y: 3, z: 0 }, isExtrusion: true },
+      { start: { x: 5, y: 3, z: 0 }, end: { x: 4, y: 3, z: 0 }, isExtrusion: true },
+      { start: { x: 4, y: 3, z: 0 }, end: { x: 4, y: 2, z: 0 }, isExtrusion: true },
+    ]];
+    expect(findToolPathLoops(toolPaths)).toEqual(loops);
+  });
+});
 
 describe('VisibilityFilter', () => {
   // isAdjacent

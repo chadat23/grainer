@@ -33,8 +33,8 @@ export default function ToolPathParser({ gcode }: { gcode: string }): ToolPath[]
         }
     });
 
-    return toolPaths.filter(toolPath => toolPath.isExtrusion === true);
-    //return toolPaths;
+    //return toolPaths.filter(toolPath => toolPath.isExtrusion === true);
+    return toolPaths;
   } catch (err) {
     console.error('Error in MovementParser:', err);
     throw err;

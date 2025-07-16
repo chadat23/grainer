@@ -115,6 +115,39 @@ import { ToolPath, Vertex } from '@/types/spatial';
 //    return {outermost, innermost};
 //}
 
+// Watches the tool paths to find loops
+export function findToolPathLoops(toolPaths: ToolPath[]): ToolPath[][] {
+    var loops: ToolPath[][] = [];
+    var inLoop: boolean = false;
+    var thisLoop: ToolPath[] = [];
+    for (const toolPath of toolPaths) {
+        if (!toolPath.isExtrusion && inLoop) {
+            // just had a potential loop stop printing, wasn't a loop
+            inLoop = false;
+            thisLoop = [];
+        } else if (toolPath.isExtrusion) {
+            // are extruding
+            if (!inLoop) {
+                // just started printing, maybe in a loop
+                inLoop = true;
+                thisLoop.push(toolPath);
+            } else if (!aboutEqual(thisLoop[0].start, toolPath.end, 0.00001)) {
+                // printing, and in a loop, but not done a loop
+                thisLoop.push(toolPath);
+            } else {
+                // just finished a loop
+                thisLoop.push(toolPath);
+                if (thisLoop.length > 2) {
+                    loops.push(thisLoop);
+                }
+                inLoop = false;
+                thisLoop = [];
+            }
+        }
+    }
+    return loops;
+}
+
 // Checks to see if a virtex is to the left of, and adjacent to, the tool path
 // Only pays attention to the x and y-axes, not the z-axis
 export function isAdjacent(vertex: Vertex, toolPath: ToolPath): boolean {
