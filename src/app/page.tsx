@@ -34,15 +34,8 @@ export default function Home() {
         }
         
         const text = await response.text();
-        //const newPaths = ToolPathParser({ gcode: text });
-        //setToolPaths(newPaths);
-        console.log("text 12345", text);
-        const toolPaths = ToolPathParser({ gcode: text });
-        const loops = findToolPathLoops(toolPaths);
-        const {outermost, innermost} = perimeterLoops(loops, 0.005);
-        innermost.push(outermost);
-        console.log("innermost 12345", innermost);
-        setToolPaths(innermost.flat().filter(toolPath => toolPath.isExtrusion));
+        const newPaths = ToolPathParser({ gcode: text });
+        setToolPaths(newPaths.filter(toolPath => toolPath.isExtrusion));
       } catch (err) {
         console.error('Error loading G-code:', err);
         setError(err instanceof Error ? err.message : 'Failed to load G-code file');
