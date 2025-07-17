@@ -78,42 +78,53 @@ import { ToolPath, Vertex } from '@/types/spatial';
 //    });
 //    return unscaledPaths;
 //}
-//
-//function perimeterLoops(loops: Path[][], delta: number): {outermost: Path[], innermost: Path[][]} {
-//    var countInside: number[] = [];
-//    for (const loop of loops) {
-//        if (loop.length == 0) {
-//            continue;
-//        }
-//        var countInsideLoop = 0;
-//        for (const otherLoop of loops) {
-//            var adjacent = 0;
-//            for (const path of otherLoop) {
-//                if (isAdjacent(loop[0].start, path)) {
-//                    adjacent++;
-//                }
-//            }
-//            if (adjacent % 2 > 0) {
-//                countInsideLoop++;
-//            }
-//        }
-//        countInside.push(countInsideLoop);
-//    }
-//
-//    var outermost: Path[] = [];
-//    var outermostCount = -1;
-//    var innermost: Path[][] = [];
-//    for (var i = 0; i < countInside.length; i++) {
-//        if (countInside[i] > outermostCount) {
-//            outermost = loops[i];
-//            outermostCount = countInside[i];
-//        }
-//        if (countInside[i] == 0) {
-//            innermost.push(loops[i]);
-//        }
-//    }
-//    return {outermost, innermost};
-//}
+
+class Loop {
+    countItsInsideOf: number = 0;
+    countInsideOfIt: number = 0;
+}
+
+export function perimeterLoops(loops: ToolPath[][], delta: number): {outermost: ToolPath[], innermost: ToolPath[][]} {
+    var nestings: [number, number, number][] = []; // loop index, number of loops it's insdie of, number of loops outside of
+    loops.forEach((loop, index) => {
+        nestings.push([index, 0, 0]);
+    });
+    for (const [innerLoopIndex, innerLoop] of loops.entries()) {
+        if (innerLoop.length === 0) {
+            continue;
+        }
+        for (const [outerLoopIndex, outerLoop] of loops.entries()) {
+            if (innerLoopIndex === outerLoopIndex) {
+                continue;
+            }
+            var adjacent = 0;
+            for (const toolPath of outerLoop) {
+                if (isAdjacent(innerLoop[0].start, toolPath)) {
+                    adjacent++;
+                }
+            }
+            if (adjacent % 2 > 0) {
+                // inner loop is inside of outer loop
+                nestings[innerLoopIndex][1]++;
+                // outer loop is outside of inner loop
+                nestings[outerLoopIndex][2]++;
+            }
+        }
+    }
+
+    var outermost: ToolPath[] = [];
+    var innermost: ToolPath[][] = [];
+    nestings.forEach(([loopIndex, countOutsideOfIt, countInsideOfIt]) => {
+        if (countOutsideOfIt === 0) {
+            outermost = loops[loopIndex];
+        }
+        if (countInsideOfIt === 0) {
+            innermost.push(loops[loopIndex]);
+        }
+    });
+
+    return {outermost, innermost};
+}
 
 // Watches the tool paths to find loops
 export function findToolPathLoops(toolPaths: ToolPath[]): ToolPath[][] {

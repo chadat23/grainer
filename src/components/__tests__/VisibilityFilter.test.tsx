@@ -1,6 +1,59 @@
 import { describe, it, expect } from '@jest/globals';
 import { ToolPath, Vertex } from '@/types/spatial';
-import { aboutEqual, isAdjacent, findToolPathLoops } from '../VisibilityFilter';
+import { aboutEqual, isAdjacent, findToolPathLoops, perimeterLoops } from '../VisibilityFilter';
+
+describe('perimeterLoops', () => {
+  it('should return the outermost and innermost loops', () => {
+    const loops: ToolPath[][] = [[
+      { start: { x: 0, y: 0, z: 0 }, end: { x: 8, y: 0, z: 0 }, isExtrusion: true },
+      { start: { x: 8, y: 0, z: 0 }, end: { x: 8, y: 8, z: 0 }, isExtrusion: true },
+      { start: { x: 8, y: 8, z: 0 }, end: { x: 0, y: 8, z: 0 }, isExtrusion: true },
+      { start: { x: 0, y: 8, z: 0 }, end: { x: 0, y: 0, z: 0 }, isExtrusion: true },
+    ], [
+      { start: { x: 1, y: 1, z: 0 }, end: { x: 2, y: 1, z: 0 }, isExtrusion: true },
+      { start: { x: 2, y: 1, z: 0 }, end: { x: 2, y: 2, z: 0 }, isExtrusion: true },
+      { start: { x: 2, y: 2, z: 0 }, end: { x: 1, y: 2, z: 0 }, isExtrusion: true },
+      { start: { x: 1, y: 2, z: 0 }, end: { x: 1, y: 1, z: 0 }, isExtrusion: true },
+    ], [
+      { start: { x: 3, y: 1, z: 0 }, end: { x: 6, y: 1, z: 0 }, isExtrusion: true },
+      { start: { x: 6, y: 1, z: 0 }, end: { x: 6, y: 4, z: 0 }, isExtrusion: true },
+      { start: { x: 6, y: 4, z: 0 }, end: { x: 3, y: 4, z: 0 }, isExtrusion: true },
+      { start: { x: 3, y: 4, z: 0 }, end: { x: 3, y: 1, z: 0 }, isExtrusion: true },
+    ], [
+      { start: { x: 4, y: 2, z: 0 }, end: { x: 5, y: 2, z: 0 }, isExtrusion: true },
+      { start: { x: 5, y: 2, z: 0 }, end: { x: 5, y: 3, z: 0 }, isExtrusion: true },
+      { start: { x: 5, y: 3, z: 0 }, end: { x: 4, y: 3, z: 0 }, isExtrusion: true },
+      { start: { x: 4, y: 3, z: 0 }, end: { x: 4, y: 2, z: 0 }, isExtrusion: true },
+    ]];
+
+    const { outermost, innermost } = {
+      outermost: [
+        { start: { x: 0, y: 0, z: 0 }, end: { x: 8, y: 0, z: 0 }, isExtrusion: true },
+        { start: { x: 8, y: 0, z: 0 }, end: { x: 8, y: 8, z: 0 }, isExtrusion: true },
+        { start: { x: 8, y: 8, z: 0 }, end: { x: 0, y: 8, z: 0 }, isExtrusion: true },
+        { start: { x: 0, y: 8, z: 0 }, end: { x: 0, y: 0, z: 0 }, isExtrusion: true },
+      ],
+      innermost: [[
+        { start: { x: 1, y: 1, z: 0 }, end: { x: 2, y: 1, z: 0 }, isExtrusion: true },
+        { start: { x: 2, y: 1, z: 0 }, end: { x: 2, y: 2, z: 0 }, isExtrusion: true },
+        { start: { x: 2, y: 2, z: 0 }, end: { x: 1, y: 2, z: 0 }, isExtrusion: true },
+        { start: { x: 1, y: 2, z: 0 }, end: { x: 1, y: 1, z: 0 }, isExtrusion: true },
+      ], [
+        { start: { x: 4, y: 2, z: 0 }, end: { x: 5, y: 2, z: 0 }, isExtrusion: true },
+        { start: { x: 5, y: 2, z: 0 }, end: { x: 5, y: 3, z: 0 }, isExtrusion: true },
+        { start: { x: 5, y: 3, z: 0 }, end: { x: 4, y: 3, z: 0 }, isExtrusion: true },
+        { start: { x: 4, y: 3, z: 0 }, end: { x: 4, y: 2, z: 0 }, isExtrusion: true },
+      ]]
+    };
+
+    const { outermost: actualOutermost, innermost: actualInnermost } = perimeterLoops(loops, 0.00001);
+
+    expect(actualOutermost).toEqual(outermost);
+    expect(actualInnermost).toHaveLength(2);
+    expect(actualInnermost[0]).toEqual(innermost[0]);
+    expect(actualInnermost[1]).toEqual(innermost[1]);
+  });
+});
 
 describe('findToolPathLoops', () => {
   it('should return an empty array since there are no loops, all jogs', () => {
