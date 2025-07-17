@@ -79,10 +79,7 @@ import { ToolPath, Vertex } from '@/types/spatial';
 //    return unscaledPaths;
 //}
 
-class Loop {
-    countItsInsideOf: number = 0;
-    countInsideOfIt: number = 0;
-}
+// TODO: need a perimeterToolPaths funciton
 
 export function perimeterLoops(loops: ToolPath[][], delta: number): {outermost: ToolPath[], innermost: ToolPath[][]} {
     var nestings: [number, number, number][] = []; // loop index, number of loops it's insdie of, number of loops outside of
@@ -142,7 +139,7 @@ export function findToolPathLoops(toolPaths: ToolPath[]): ToolPath[][] {
                 // just started printing, maybe in a loop
                 inLoop = true;
                 thisLoop.push(toolPath);
-            } else if (!aboutEqual(thisLoop[0].start, toolPath.end, 0.00001)) {
+            } else if (!aboutEqual(thisLoop[0].start, toolPath.end, 0.5)) {
                 // printing, and in a loop, but not done a loop
                 thisLoop.push(toolPath);
             } else {
@@ -162,11 +159,11 @@ export function findToolPathLoops(toolPaths: ToolPath[]): ToolPath[][] {
 // Checks to see if a virtex is to the left of, and adjacent to, the tool path
 // Only pays attention to the x and y-axes, not the z-axis
 export function isAdjacent(vertex: Vertex, toolPath: ToolPath): boolean {
-    if (Math.abs(vertex.y - toolPath.start.y) < 0.00001 && vertex.x < toolPath.start.x) {
+    if (Math.abs(vertex.y - toolPath.start.y) < 0.005 && vertex.x < toolPath.start.x) {
         return true;
     }
 
-    if (Math.abs(vertex.y - toolPath.end.y) < 0.00001) {
+    if (Math.abs(vertex.y - toolPath.end.y) < 0.005) {
         return false;
     }
     
@@ -180,7 +177,7 @@ export function isAdjacent(vertex: Vertex, toolPath: ToolPath): boolean {
         return false;
     }
 
-    if (Math.abs(toolPath.start.x - toolPath.end.x) < 0.00001) {
+    if (Math.abs(toolPath.start.x - toolPath.end.x) < 0.005) {
         if (vertex.x < toolPath.start.x) {
             return true;
         } else {

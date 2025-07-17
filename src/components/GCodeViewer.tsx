@@ -42,7 +42,6 @@ export default function GCodeViewer({ toolPaths, defaultColor, minColor, maxColo
 
     // Calculate bounds
     const bounds = new THREE.Box3();
-    console.log("toolPaths 12345", toolPaths);
     toolPaths.forEach(toolPath => {
       bounds.expandByPoint(new THREE.Vector3(toolPath.start.x, toolPath.start.y, toolPath.start.z));
       bounds.expandByPoint(new THREE.Vector3(toolPath.end.x, toolPath.end.y, toolPath.end.z));
