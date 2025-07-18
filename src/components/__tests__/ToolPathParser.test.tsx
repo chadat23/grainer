@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import ToolPathParser, { makePoint, calcAngle, calcPoint } from '../ToolPathParser';
+import CommandParser, { makePoint, calcAngle, calcPoint } from '../CommandParser';
 import { ToolPath, Vertex } from '@/types/spatial';
 import { GCodeCommand, LinearMovementCommand, ArcMovementCommand } from '@/types/gcode';
 
@@ -22,7 +22,7 @@ describe('ToolPathParser', () => {
       G3 P1 I2.4686 J-5.4686 E0.5
     `;
     // TODO: maybe remove the filter, don't know what makes the most sense
-    const result = ToolPathParser({ gcode }).filter(toolPath => toolPath.isExtrusion);
+    const result = CommandParser({ gcode }).filter(toolPath => toolPath.isExtrusion);
     expect(result).toHaveLength(56);
     // G1 X20 Y30 Z4 E1.5
     expect(result[0]).toEqual({ start: { x: 20, y: 40, z: 3 }, end: { x: 20, y: 30, z: 4 }, isExtrusion: true });

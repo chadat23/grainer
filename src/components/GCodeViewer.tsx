@@ -25,9 +25,11 @@ export default function GCodeViewer({ toolPaths, defaultColor, minColor, maxColo
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
-  const pathMeshesRef = useRef<THREE.Mesh[]>([]);
+  const geometryRef = useRef<THREE.BufferGeometry | null>(null);
+  const meshRef = useRef<THREE.Mesh | null>(null);
+  const renderedPathsRef = useRef<number[]>([]);
 
-  // Effect for initial setup of scene, camer, renderer, and controls
+  // Effect for initial setup of scene, camera, renderer, and controls
   useEffect(() => {
     console.log("GCodeViewer useEffect called");
     if (!containerRef.current) {
@@ -102,7 +104,6 @@ export default function GCodeViewer({ toolPaths, defaultColor, minColor, maxColo
     controls.enableDamping = false;
     controls.dampingFactor = 0;
     controls.rotateSpeed = 1.0;
-    //controls.target.set(0, 0, 0);
     controls.target.copy(center);
     controls.minDistance = maxDim * 0.01;
     controls.maxDistance = maxDim * 2;
@@ -165,29 +166,183 @@ export default function GCodeViewer({ toolPaths, defaultColor, minColor, maxColo
     };
   }, [toolPaths, cameraVertex, lookAtVertex]); // Re-run only when paths or initial camera points change
 
-  // Effect for creating and updating the path geometries (when paths, baseColor, accentColor hange)
+  // Effect for creating the optimized geometry (only when toolPaths change)
   useEffect(() => {
-    console.log("GCodeViewer paths/color update useEffect called");
+    console.log("GCodeViewer geometry creation useEffect called");
     if (!sceneRef.current) {
-      console.log('Scene ref not initialized for path/color update');
+      console.log('Scene ref not initialized for geometry creation');
       return;
     }
 
-    // Remove old path methses from scene
-    pathMeshesRef.current.forEach(mesh => {
-      sceneRef.current?.remove(mesh);
-      mesh.geometry.dispose();
-      (mesh.material as THREE.Material).dispose();
+    // Remove old geometry and mesh
+    if (meshRef.current) {
+      sceneRef.current.remove(meshRef.current);
+      meshRef.current.geometry.dispose();
+      (meshRef.current.material as THREE.Material).dispose();
+    }
+    if (geometryRef.current) {
+      geometryRef.current.dispose();
+    }
+
+    // Create optimized geometry with all paths in a single buffer
+    const pathWidth = 0.2;
+    const pathHeight = 0.4;
+    
+    // Pre-allocate arrays for better performance
+    const vertices: number[] = [];
+    const colors: number[] = [];
+    const indices: number[] = [];
+    
+    let vertexIndex = 0;
+    let indexOffset = 0;
+    const renderedPaths: number[] = []; // Track which paths are actually rendered
+
+    // Calculate the min and max Z values for color mapping
+    var provisionalMinZ: number | undefined = undefined;
+    var provisionalMaxZ: number | undefined = undefined;
+    toolPaths.forEach((toolPath) => {
+      if (provisionalMinZ === undefined || toolPath.start.z < provisionalMinZ) {
+        provisionalMinZ = toolPath.start.z;
+      }
+      if (provisionalMaxZ === undefined || toolPath.start.z > provisionalMaxZ) {
+        provisionalMaxZ = toolPath.start.z;
+      }
     });
-    pathMeshesRef.current = [];
+    if (provisionalMinZ === undefined || provisionalMaxZ === undefined) {
+      provisionalMinZ = 0;
+      provisionalMaxZ = 1;
+    }
+    const minZ = provisionalMinZ!;
+    const maxZ = provisionalMaxZ!;
 
-    // Create rectangles for each path
-    const pathWidth = 0.2; // Width of the rectangle
-    const pathHeight = 0.4; // Height of the rectangle
-    const roughness = 0.7;
-    const metalness = 0.2;
-    const side = THREE.DoubleSide;
+    // Get the min and max temp from the accent sliders
+    const minTemp = accentSliders.reduce((min, slider) => Math.min(min, slider.accentTemp), Infinity);
+    const maxTemp = accentSliders.reduce((max, slider) => Math.max(max, slider.accentTemp), -Infinity);
 
+    const defaultColorInt = parseInt(defaultColor.slice(1), 16);
+    const minColorInt = parseInt(minColor.slice(1), 16);
+    const maxColorInt = parseInt(maxColor.slice(1), 16);
+
+    var accentIndex = 0;
+
+    // Create box geometry for each path and merge into single buffer
+    toolPaths.forEach((toolPath, pathIndex) => {
+      const start = new THREE.Vector3(toolPath.start.x, toolPath.start.y, toolPath.start.z);
+      const end = new THREE.Vector3(toolPath.end.x, toolPath.end.y, toolPath.end.z);
+      
+      // Calculate the direction and length of the path
+      const direction = new THREE.Vector3().subVectors(end, start);
+      const length = direction.length();
+      direction.normalize();
+
+      // Skip very short paths to reduce geometry
+      if (length < 0.01) {
+        console.log(`Skipping short path ${pathIndex}, length: ${length}`);
+        return;
+      }
+
+      // Track that this path is being rendered
+      renderedPaths.push(pathIndex);
+
+      // Calculate color for this path
+      let color = 0x99FF99;
+      if (toolPath.start.z * 5 - 0.05 < accentSliders[accentIndex]?.accentLayer) {
+        color = 0xA52A2A;
+      }
+
+      // Convert hex color to RGB
+      const r = (color >> 16) & 0xFF;
+      const g = (color >> 8) & 0xFF;
+      const b = color & 0xFF;
+
+      // Create a box geometry for this path
+      const boxGeometry = new THREE.BoxGeometry(length, pathHeight, pathWidth);
+      
+      // Create a temporary mesh for transformation
+      const tempMesh = new THREE.Mesh(boxGeometry);
+      
+      // Position at midpoint
+      tempMesh.position.copy(start).add(end).multiplyScalar(0.5);
+      
+      // Look at the end point
+      tempMesh.lookAt(end);
+      
+      // Rotate to align the length with the path direction
+      tempMesh.rotateY(Math.PI / 2);
+      
+      // Update the world matrix
+      tempMesh.updateMatrixWorld();
+      
+      // Extract vertices and transform them
+      const positions = boxGeometry.attributes.position.array as Float32Array;
+      const boxIndices = boxGeometry.index?.array as Uint16Array;
+
+      // Add vertices for this box
+      for (let i = 0; i < positions.length; i += 3) {
+        const vertex = new THREE.Vector3(positions[i], positions[i + 1], positions[i + 2]);
+        vertex.applyMatrix4(tempMesh.matrixWorld);
+        
+        vertices.push(vertex.x, vertex.y, vertex.z);
+        colors.push(r / 255, g / 255, b / 255);
+      }
+
+      // Add indices for this box
+      if (boxIndices) {
+        for (let i = 0; i < boxIndices.length; i++) {
+          indices.push(boxIndices[i] + indexOffset);
+        }
+      }
+
+      indexOffset += boxGeometry.attributes.position.count;
+      boxGeometry.dispose();
+    });
+
+    console.log(`Created geometry with ${renderedPaths.length} rendered paths out of ${toolPaths.length} total paths`);
+    console.log(`Total vertices: ${vertices.length / 3}, Total indices: ${indices.length}`);
+
+    // Store the rendered paths for color updates
+    renderedPathsRef.current = renderedPaths;
+
+    // Create the combined geometry
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    geometry.setIndex(indices);
+    geometry.computeVertexNormals();
+
+    // Create material with vertex colors
+    const material = new THREE.MeshStandardMaterial({ 
+      vertexColors: true,
+      roughness: 0.7,
+      metalness: 0.2,
+      side: THREE.DoubleSide
+    });
+
+    // Create the single mesh
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    
+    sceneRef.current.add(mesh);
+    geometryRef.current = geometry;
+    meshRef.current = mesh;
+
+  }, [toolPaths]); // Only re-run when toolPaths change
+
+  // Effect for updating colors (when colors or accent sliders change)
+  useEffect(() => {
+    console.log("GCodeViewer color update useEffect called");
+    if (!geometryRef.current || !meshRef.current) {
+      console.log('No geometry available for color update');
+      return;
+    }
+
+    const colorAttribute = geometryRef.current.getAttribute('color') as THREE.BufferAttribute;
+    if (!colorAttribute) return;
+
+    const colors = colorAttribute.array as Float32Array;
+    const renderedPaths = renderedPathsRef.current || [];
+    
     // Calculate the min and max Z values
     var provisionalMinZ: number | undefined = undefined;
     var provisionalMaxZ: number | undefined = undefined;
@@ -215,80 +370,43 @@ export default function GCodeViewer({ toolPaths, defaultColor, minColor, maxColo
     const maxColorInt = parseInt(maxColor.slice(1), 16);
 
     var accentIndex = 0;
-    var color = minColorInt;
+    let colorIndex = 0;
 
-    toolPaths.forEach((toolPath) => {
-      const start = new THREE.Vector3(toolPath.start.x, toolPath.start.y, toolPath.start.z);
-      const end = new THREE.Vector3(toolPath.end.x, toolPath.end.y, toolPath.end.z);
+    // Update colors only for rendered paths
+    renderedPaths.forEach((pathIndex: number) => {
+      const toolPath = toolPaths[pathIndex];
       
-      // Calculate the direction and length of the path
-      const direction = new THREE.Vector3().subVectors(end, start);
-      const length = direction.length();
-      direction.normalize();
-
-      // Create a box geometry
-      const geometry = new THREE.BoxGeometry(length, pathHeight, pathWidth);
-
-      // get color for the path
-      color = 0x99FF99;
-      if (toolPath.start.z  * 5 - 0.05 < accentSliders[accentIndex].accentLayer) {
-        //color = defaultColorInt;
+      // Calculate color for this path
+      let color = 0x99FF99;
+      if (toolPath.start.z * 5 - 0.05 < accentSliders[accentIndex]?.accentLayer) {
         color = 0xA52A2A;
       }
-      //} else if (accentIndex < accentSliders.length - 1) {
-        //if (path.start.z == accentSliders[accentIndex + 1].accentLayer) {
-        //  accentIndex++;
-        //}
 
-        //color = calcColor(
-        //  minColorInt, 
-        //  maxColorInt, 
-        //  minTemp, 
-        //  maxTemp, 
-        //  accentSliders[accentIndex].accentTemp, 
-        //  accentSliders[accentIndex+1].accentTemp, 
-        //  accentSliders[accentIndex].accentLayer, 
-        //  accentSliders[accentIndex+1].accentLayer, 
-        //  path.start.z
-        //);
-      //} else if (accentIndex == accentSliders.length - 1) {
-        //color = accentSliders[accentIndex].accentTemp;
-        //color = 0xA52A2A;
-      //}
-      //if (path.start.z == 400) {
+      // Convert hex color to RGB
+      const r = (color >> 16) & 0xFF;
+      const g = (color >> 8) & 0xFF;
+      const b = color & 0xFF;
 
-      // Create a material
-      //if (accentIndex < accentSliders.length) {
-      //  if (path.start.z >= accentSliders[accentIndex].accentLayer && path.start.z <= accentSliders[accentIndex].accentTemp) {
-      //    color = maxColorInt;
-      //  } else if (color === maxColorInt) {
-      //    accentIndex++;
-      //    color = minColorInt;
-      //  }
-      //}
-      const pathMaterial = new THREE.MeshStandardMaterial({ 
-        color: new THREE.Color(color), // Tan color
-        roughness: roughness,
-        metalness: metalness,
-        side: side
-      });
-      
-      // Create mesh
-      const box = new THREE.Mesh(geometry, pathMaterial);
-      box.castShadow = true;
-      box.receiveShadow = true;
-      
-      // Position the box at the midpoint
-      box.position.copy(start).add(end).multiplyScalar(0.5);
-      
-      // Rotate the box to align with the path
-      box.lookAt(end);
-      box.rotateY(Math.PI / 2); // Align the length with the path
-      
-      sceneRef.current!.add(box);
-      pathMeshesRef.current.push(box);
+      // Update colors for all vertices of this path (24 vertices per box)
+      for (let i = 0; i < 24; i++) {
+        const index = colorIndex * 3;
+        if (index + 2 < colors.length) {
+          colors[index] = r / 255;
+          colors[index + 1] = g / 255;
+          colors[index + 2] = b / 255;
+        } else {
+          console.warn(`Color index ${index} out of bounds for path ${pathIndex}`);
+        }
+        colorIndex++;
+      }
     });
-  }, [toolPaths, minColor, maxColor, cameraVertex, lookAtVertex, accentSliders]);
+
+    console.log(`Updated colors for ${renderedPaths.length} paths, total color vertices: ${colorIndex}`);
+
+    // Mark the attribute as needing update
+    colorAttribute.needsUpdate = true;
+
+  }, [toolPaths, minColor, maxColor, accentSliders]); // Re-run when colors or accent sliders change
 
   return <div ref={containerRef} className="w-full h-full" />;
 }

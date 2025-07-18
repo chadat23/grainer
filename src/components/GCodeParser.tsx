@@ -1,6 +1,6 @@
 'use client';
 
-import { GCodeCommand, LinearMovementCommand, ArcMovementCommand } from '@/types/gcode';
+import { GCodeCommand, LinearMovementCommand, ArcMovementCommand, TemperatureCommand } from '@/types/gcode';
 import { useEffect, useState } from 'react';
 
 //interface BaseCommand {
@@ -24,25 +24,46 @@ import { useEffect, useState } from 'react';
 
 export function parseGCode(content: string): GCodeCommand[] {
   const lines = content.split('\n');
-  return lines.map(line => {
+  const commands: GCodeCommand[] = [];
+  
+  lines.forEach((line, lineIndex) => {
+    // Use 1-based line numbering to match file line numbers
+    const lineNumber = lineIndex + 1;
+    
     // Remove comments and trim whitespace
     const cleanLine = line.split(';')[0].trim();
-    if (!cleanLine) return null;
+    
+    // Skip empty lines but still count them in line numbers
+    if (!cleanLine) return;
 
     // Split the line into command and parameters
     const parts = cleanLine.split(' ');
-    if (parts.length === 0) return null;
+    if (parts.length === 0) return;
 
     const command = parts[0];
-    if (command !== 'G0' && command !== 'G1' && command !== 'G2' && command !== 'G3') return null;
+    if (command !== 'G0' && command !== 'G1' && command !== 'G2' && command !== 'G3' && command !== 'M104' && command !== 'M109') return;
 
     // Parse parameters
-    let result: LinearMovementCommand | ArcMovementCommand;
+    let result: LinearMovementCommand | ArcMovementCommand | TemperatureCommand;
     
     if (command === 'G0' || command === 'G1') {
-      result = { command: command as "G0" | "G1", parameters: {} };
-    } else {
-      result = { command: command as "G2" | "G3", parameters: {} };
+      result = { 
+        command: command as "G0" | "G1", 
+        parameters: {},
+        lineNumber: lineNumber
+      };
+    } else if (command === 'G2' || command === 'G3') {
+      result = { 
+        command: command as "G2" | "G3", 
+        parameters: {},
+        lineNumber: lineNumber
+      };
+    } else if (command === 'M104' || command === 'M109') {
+      result = { 
+        command: command as "M104" | "M109", 
+        parameters: {},
+        lineNumber: lineNumber
+      };
     }
 
     // Process parameters if they exist
@@ -57,8 +78,10 @@ export function parseGCode(content: string): GCodeCommand[] {
       }
     }
 
-    return result;
-  }).filter((line): line is LinearMovementCommand | ArcMovementCommand => line !== null);
+    commands.push(result);
+  });
+
+  return commands;
 }
 
 export default function GCodeParser() {

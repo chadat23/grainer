@@ -2,6 +2,7 @@
 export interface GCodeCommand {
   command: string;
   parameters: Record<string, number | string | boolean | undefined>;
+  lineNumber: number;
 }
 
 // Movement commands (G0, G1)
@@ -35,11 +36,11 @@ export interface ArcMovementCommand extends GCodeCommand {
 }
 
 // Temperature commands (M104, M109)
+// TODO: make work for stuff other than S such as T and P
 export interface TemperatureCommand extends GCodeCommand {
   command: 'M104' | 'M109';
   parameters: {
     s?: number;  // Set temperature
-    p?: number;  // Tool index
     [key: string]: number | string | boolean | undefined;
   };
 }
