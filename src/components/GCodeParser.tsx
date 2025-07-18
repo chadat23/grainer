@@ -3,25 +3,6 @@
 import { GCodeCommand, LinearMovementCommand, ArcMovementCommand, TemperatureCommand } from '@/types/gcode';
 import { useEffect, useState } from 'react';
 
-//interface BaseCommand {
-//    code: "G0" | "G1" | "G2" | "G3";
-//    x?: number;
-//    y?: number;
-//    z?: number;
-//    e: boolean;
-//}
-//
-//interface LinearCommand extends BaseCommand {
-//    code: "G0" | "G1";
-//}
-//
-//interface ArcCommand extends BaseCommand {
-//    code: "G2" | "G3";
-//    i?: number;
-//    j?: number;
-//    r?: number;
-//}
-
 export function parseGCode(content: string): GCodeCommand[] {
   const lines = content.split('\n');
   const commands: GCodeCommand[] = [];

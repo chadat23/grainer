@@ -194,7 +194,16 @@ export default function Home() {
         </div>
       </div>
       <div className="w-2/3 h-full">
-        <GCodeViewer commands={commands} defaultColor={defaultColor} minColor={minColor} maxColor={maxColor} cameraVertex={cameraVertex} lookAtVertex={lookAtVertex} accentSliders={accentSliders}/>
+        <GCodeViewer 
+          commands={commands} 
+          colorizerType="layer"
+          defaultColor={defaultColor} 
+          minColor={minColor} 
+          maxColor={maxColor} 
+          cameraVertex={cameraVertex} 
+          lookAtVertex={lookAtVertex} 
+          accentSliders={accentSliders}
+        />
       </div>
     </main>
   );

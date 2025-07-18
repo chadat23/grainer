@@ -3,10 +3,12 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { Command, ToolPath, Vertex } from '@/types/command';
+import { Command, Vertex } from '@/types/command';
+import { BaseColorizer, ColorizerFactory, ColorizerType } from '@/services/colorizers';
 
 interface GCodeViewerProps {
   commands: Command[];
+  colorizerType: ColorizerType; // Required - no default
   defaultColor: string;
   minColor: string;
   maxColor: string;
@@ -19,7 +21,16 @@ interface GCodeViewerProps {
   }[];
 }
 
-export default function GCodeViewer({ commands, defaultColor, minColor, maxColor, cameraVertex, lookAtVertex, accentSliders }: GCodeViewerProps) {
+export default function GCodeViewer({ 
+  commands, 
+  colorizerType, 
+  defaultColor, 
+  minColor, 
+  maxColor, 
+  cameraVertex, 
+  lookAtVertex, 
+  accentSliders 
+}: GCodeViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -28,6 +39,7 @@ export default function GCodeViewer({ commands, defaultColor, minColor, maxColor
   const geometryRef = useRef<THREE.BufferGeometry | null>(null);
   const meshRef = useRef<THREE.Mesh | null>(null);
   const renderedPathsRef = useRef<number[]>([]);
+  const colorizerRef = useRef<BaseColorizer>(ColorizerFactory.createColorizer(colorizerType));
 
   // Effect for initial setup of scene, camera, renderer, and controls
   useEffect(() => {
@@ -167,6 +179,11 @@ export default function GCodeViewer({ commands, defaultColor, minColor, maxColor
       }
     };
   }, [commands, cameraVertex, lookAtVertex]); // Re-run only when paths or initial camera points change
+
+  // Effect for handling colorizer type changes
+  useEffect(() => {
+    colorizerRef.current = ColorizerFactory.createColorizer(colorizerType);
+  }, [colorizerType]);
 
   // Effect for creating the optimized geometry (only when toolPaths change)
   useEffect(() => {
@@ -349,63 +366,40 @@ export default function GCodeViewer({ commands, defaultColor, minColor, maxColor
     const colors = colorAttribute.array as Float32Array;
     const renderedPaths = renderedPathsRef.current || [];
     
-    // Calculate the min and max Z values
-    var provisionalMinZ: number | undefined = undefined;
-    var provisionalMaxZ: number | undefined = undefined;
-    commands.forEach((command) => {
-      if (command.toolPath) {
-        if (provisionalMinZ === undefined || command.toolPath.start.z < provisionalMinZ) {
-          provisionalMinZ = command.toolPath.start.z;
-        }
-        if (provisionalMaxZ === undefined || command.toolPath.start.z > provisionalMaxZ) {
-          provisionalMaxZ = command.toolPath.start.z;
-        }
-      }
+    // Use the LayerColorizer to calculate colors
+    const colorizer = colorizerRef.current;
+    const { lineColors } = colorizer.calculateColors({
+      commands,
+      accentSliders,
+      defaultColor,
+      minColor,
+      maxColor
     });
-    if (provisionalMinZ === undefined || provisionalMaxZ === undefined) {
-      provisionalMinZ = 0;
-      provisionalMaxZ = 1;
-    }
-    const minZ = provisionalMinZ!;
-    const maxZ = provisionalMaxZ!;
 
-    // Get the min and max temp from the accent sliders
-    const minTemp = accentSliders.reduce((min, slider) => Math.min(min, slider.accentTemp), Infinity);
-    const maxTemp = accentSliders.reduce((max, slider) => Math.max(max, slider.accentTemp), -Infinity);
-
-    const defaultColorInt = parseInt(defaultColor.slice(1), 16);
-    const minColorInt = parseInt(minColor.slice(1), 16);
-    const maxColorInt = parseInt(maxColor.slice(1), 16);
-
-    var accentIndex = 0;
     let colorIndex = 0;
 
     // Update colors only for rendered paths
     renderedPaths.forEach((pathIndex: number) => {
       const command = commands[pathIndex];
       if (command.toolPath) {
-      
-      // Calculate color for this path
-      let color = 0x99FF99;
-      if (command.toolPath.start.z * 5 - 0.05 < accentSliders[accentIndex]?.accentLayer) {
-        color = 0xA52A2A;
-      }
+        // Get color from the colorizer
+        const color = lineColors.get(command.lineNumber) || 0x99FF99;
 
-      // Convert hex color to RGB
-      const r = (color >> 16) & 0xFF;
-      const g = (color >> 8) & 0xFF;
-      const b = color & 0xFF;
+        // Convert hex color to RGB
+        const r = (color >> 16) & 0xFF;
+        const g = (color >> 8) & 0xFF;
+        const b = color & 0xFF;
 
-      // Update colors for all vertices of this path (24 vertices per box)
-      for (let i = 0; i < 24; i++) {
-        const index = colorIndex * 3;
-        if (index + 2 < colors.length) {
-          colors[index] = r / 255;
-          colors[index + 1] = g / 255;
-          colors[index + 2] = b / 255;
-        } else {
-          console.warn(`Color index ${index} out of bounds for path ${pathIndex}`);
-        }
+        // Update colors for all vertices of this path (24 vertices per box)
+        for (let i = 0; i < 24; i++) {
+          const index = colorIndex * 3;
+          if (index + 2 < colors.length) {
+            colors[index] = r / 255;
+            colors[index + 1] = g / 255;
+            colors[index + 2] = b / 255;
+          } else {
+            console.warn(`Color index ${index} out of bounds for path ${pathIndex}`);
+          }
           colorIndex++;
         }
       }
@@ -416,7 +410,7 @@ export default function GCodeViewer({ commands, defaultColor, minColor, maxColor
     // Mark the attribute as needing update
     colorAttribute.needsUpdate = true;
 
-  }, [commands, minColor, maxColor, accentSliders]); // Re-run when colors or accent sliders change
+  }, [commands, minColor, maxColor, accentSliders, colorizerType]); // Re-run when colors, accent sliders, or colorizer type change
 
   return <div ref={containerRef} className="w-full h-full" />;
 }
