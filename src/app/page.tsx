@@ -26,7 +26,7 @@ export default function Home() {
   const [darkWidthStandardDeviation, setDarkWidthStandardDeviation] = useState(1); // Default dark width standard deviation
   const [transitionNominalWidth, setTransitionNominalWidth] = useState(2); // Default transition nominal width
   const [transitionStandardDeviation, setTransitionStandardDeviation] = useState(0.5); // Default transition standard deviation
-  const [seed, setSeed] = useState(2); // Default seed value
+  const [seed, setSeed] = useState(0); // Default seed value
 
   useEffect(() => {
     const fetchGCode = async () => {

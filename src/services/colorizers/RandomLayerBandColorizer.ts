@@ -24,64 +24,68 @@ export class LayerColorizer extends BaseColorizer {
     const seed = input.seed || 2; // Use the seed from input
     const rng = new SeedableRandom(seed);
 
-    var height = -10;
+    const maxHeight = input.commands.reduce((max, command) => Math.max(max, command.toolPath?.start.z || 0), 0);
+    var heights: [number, number, number, number, number][] = [];
+    heights.push([0, rng.nextNormalClamped(lightNominalWidth, lightWidthStandardDeviation, 0, 1e6), 0, lightColor, 0]);
+    while (heights[heights.length - 1][0] < maxHeight) {
+      // Light to dark transition
+      heights.push([
+        heights[heights.length - 1][1],
+        heights[heights.length - 1][1] + rng.nextNormalClamped(transitionNominalWidth, transitionStandardDeviation, 0, 1e6),
+        heights[heights.length - 1][3],
+        0,
+        rng.nextNormalColorClamped(darkColor, scaledDarkColorDeviation, 0, darkColor)
+      ]);
+      // Dark
+      heights.push([
+        heights[heights.length - 1][1],
+        heights[heights.length - 1][1] + rng.nextNormalClamped(darkNominalWidth, darkWidthStandardDeviation, 0, 1e6),
+        0,
+        heights[heights.length - 1][4],
+        0,
+      ]);
+      // Dark to light transition
+      heights.push([
+        heights[heights.length - 1][1],
+        heights[heights.length - 1][1] + rng.nextNormalClamped(transitionNominalWidth, transitionStandardDeviation, 0, 1e6),
+        heights[heights.length - 1][3],
+        0,
+        lightColor,
+      ]);
+      // Light
+      heights.push([
+        heights[heights.length - 1][1],
+        heights[heights.length - 1][1] + rng.nextNormalClamped(lightNominalWidth, lightWidthStandardDeviation, 0, 1e6),
+        0,
+        lightColor,
+        0,
+      ]);
+    };
 
-    var step = 0;
-    var interpolationHeight = -1;
-
-    var currentColor = lightColor;
-    var lastColor = lightColor;
-    var nextColor = darkColor;
-
-    // Calculate colors for each command
     input.commands.forEach((command) => {
-      if (command.toolPath) {
-        // Calculate color for this path (same logic as before)
-        //console.log("command.toolPath.start.z", command.toolPath.start.z);
-        //console.log("height", height);
-        if (command.toolPath.start.z > height) {
-          height = height < 0 ? 0 : height;
-          step = (step + 1) % 4;
-          switch (step) {
-            case 0:
-              height += rng.nextNormalClamped(lightNominalWidth, lightWidthStandardDeviation, 0, 1e6);
-              currentColor = lightColor;
-              break;
-            case 1:
-              height += rng.nextNormalClamped(transitionNominalWidth, transitionStandardDeviation, 0, 1e6);
-              lastColor = lightColor;
-              nextColor =  rng.nextNormalColorClamped(darkColor, scaledDarkColorDeviation, 0, darkColor);
-              interpolationHeight = command.toolPath.start.z;
-              break;
-            case 2:
-              height += rng.nextNormalClamped(darkNominalWidth, darkWidthStandardDeviation, 0, 1e6);
-              currentColor = nextColor;
-              break;
-            case 3:
-              height += rng.nextNormalClamped(transitionNominalWidth, transitionStandardDeviation, 0, 1e6);
-              lastColor = currentColor;
-              nextColor = lightColor;
-              break;
+      if (command.toolPath && command.toolPath.start.z > 0) {
+        for (const [index, height] of heights.entries()) {
+          if (command.toolPath.start.z >= height[0] && command.toolPath.start.z < height[1]) {
+            switch (index % 4) {
+              case 0:
+                lineColors.set(command.lineNumber, height[3]);
+                break;
+              case 1: {
+                const factor1 = (command.toolPath.start.z - height[0]) / (height[1] - height[0]);
+                lineColors.set(command.lineNumber, colorInterpolate(height[2], height[4], Math.max(0, Math.min(1, factor1))));
+                break;
+              }
+              case 2:
+                lineColors.set(command.lineNumber, height[3]);
+                break;
+              case 3: {
+                const factor3 = (command.toolPath.start.z - height[0]) / (height[1] - height[0]);
+                lineColors.set(command.lineNumber, colorInterpolate(height[2], height[4], Math.max(0, Math.min(1, factor3))));
+                break;
+              }
+            }
+            break;
           }
-        }
-        switch (step) {
-          case 0:
-            lineColors.set(command.lineNumber, currentColor);
-            break;
-          case 1:
-            const factor1 = (command.toolPath.start.z - interpolationHeight) / (height - interpolationHeight);
-            currentColor = colorInterpolate(lastColor, nextColor, Math.max(0, Math.min(1, factor1)));
-            lineColors.set(command.lineNumber, currentColor);
-            break;
-          case 2:
-            //currentColor = rng.nextNormalColorClamped(darkColor, scaledDarkColorDeviation, 0, darkColor);
-            lineColors.set(command.lineNumber, currentColor);
-            break;
-          case 3:
-            const factor3 = (command.toolPath.start.z - interpolationHeight) / (height - interpolationHeight);
-            currentColor = colorInterpolate(lastColor, nextColor, Math.max(0, Math.min(1, factor3)));
-            lineColors.set(command.lineNumber, currentColor);
-            break;
         }
       }
     });
