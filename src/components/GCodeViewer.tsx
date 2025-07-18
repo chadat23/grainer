@@ -259,7 +259,7 @@ export default function GCodeViewer({
 
       // Skip very short paths to reduce geometry
       if (length < 0.01) {
-        console.log(`Skipping short path ${pathIndex}, length: ${length}`);
+        //console.log(`Skipping short path ${pathIndex}, length: ${length}`);
         return;
       }
 

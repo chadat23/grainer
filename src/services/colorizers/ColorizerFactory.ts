@@ -1,5 +1,5 @@
 import { BaseColorizer } from './BaseColorizer';
-import { LayerColorizer } from './LayerColorizer';
+import { LayerColorizer } from './RandomLayerBandColorizer';
 
 export type ColorizerType = 'layer' | 'radial' | 'temperature';
 

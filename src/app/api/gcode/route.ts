@@ -5,7 +5,8 @@ import path from 'path';
 export async function GET() {
   try {
     //const filePath = path.join(process.cwd(), 'public', 'test', 'gcode', 'bambu_2.0.2.57_cube.gcode');
-    const filePath = path.join(process.cwd(), 'public', 'test', 'gcode', 'bambu_2.0.2.57_scraper.gcode');
+    //const filePath = path.join(process.cwd(), 'public', 'test', 'gcode', 'bambu_2.0.2.57_scraper.gcode');
+    const filePath = path.join(process.cwd(), 'public', 'test', 'gcode', 'bambu_2.0.2.57_tower.gcode');
     //console.log('Reading G-code file from:', filePath);
     
     if (!fs.existsSync(filePath)) {
