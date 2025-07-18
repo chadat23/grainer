@@ -3,10 +3,10 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { ToolPath, Vertex } from '@/types/spatial';
+import { Command, ToolPath, Vertex } from '@/types/command';
 
 interface GCodeViewerProps {
-  toolPaths: ToolPath[];
+  commands: Command[];
   defaultColor: string;
   minColor: string;
   maxColor: string;
@@ -19,7 +19,7 @@ interface GCodeViewerProps {
   }[];
 }
 
-export default function GCodeViewer({ toolPaths, defaultColor, minColor, maxColor, cameraVertex, lookAtVertex, accentSliders }: GCodeViewerProps) {
+export default function GCodeViewer({ commands, defaultColor, minColor, maxColor, cameraVertex, lookAtVertex, accentSliders }: GCodeViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -44,9 +44,11 @@ export default function GCodeViewer({ toolPaths, defaultColor, minColor, maxColo
 
     // Calculate bounds
     const bounds = new THREE.Box3();
-    toolPaths.forEach(toolPath => {
-      bounds.expandByPoint(new THREE.Vector3(toolPath.start.x, toolPath.start.y, toolPath.start.z));
-      bounds.expandByPoint(new THREE.Vector3(toolPath.end.x, toolPath.end.y, toolPath.end.z));
+    commands.forEach(command => {
+      if (command.toolPath) {
+        bounds.expandByPoint(new THREE.Vector3(command.toolPath.start.x, command.toolPath.start.y, command.toolPath.start.z));
+        bounds.expandByPoint(new THREE.Vector3(command.toolPath.end.x, command.toolPath.end.y, command.toolPath.end.z));
+      }
     });
     const size = bounds.getSize(new THREE.Vector3());
     const center = bounds.getCenter(new THREE.Vector3());
@@ -164,7 +166,7 @@ export default function GCodeViewer({ toolPaths, defaultColor, minColor, maxColo
         sceneRef.current.clear();
       }
     };
-  }, [toolPaths, cameraVertex, lookAtVertex]); // Re-run only when paths or initial camera points change
+  }, [commands, cameraVertex, lookAtVertex]); // Re-run only when paths or initial camera points change
 
   // Effect for creating the optimized geometry (only when toolPaths change)
   useEffect(() => {
@@ -200,12 +202,14 @@ export default function GCodeViewer({ toolPaths, defaultColor, minColor, maxColo
     // Calculate the min and max Z values for color mapping
     var provisionalMinZ: number | undefined = undefined;
     var provisionalMaxZ: number | undefined = undefined;
-    toolPaths.forEach((toolPath) => {
-      if (provisionalMinZ === undefined || toolPath.start.z < provisionalMinZ) {
-        provisionalMinZ = toolPath.start.z;
-      }
-      if (provisionalMaxZ === undefined || toolPath.start.z > provisionalMaxZ) {
-        provisionalMaxZ = toolPath.start.z;
+    commands.forEach((command) => {
+      if (command.toolPath) {
+        if (provisionalMinZ === undefined || command.toolPath.start.z < provisionalMinZ) {
+          provisionalMinZ = command.toolPath.start.z;
+        }
+        if (provisionalMaxZ === undefined || command.toolPath.start.z > provisionalMaxZ) {
+          provisionalMaxZ = command.toolPath.start.z;
+        }
       }
     });
     if (provisionalMinZ === undefined || provisionalMaxZ === undefined) {
@@ -226,9 +230,10 @@ export default function GCodeViewer({ toolPaths, defaultColor, minColor, maxColo
     var accentIndex = 0;
 
     // Create box geometry for each path and merge into single buffer
-    toolPaths.forEach((toolPath, pathIndex) => {
-      const start = new THREE.Vector3(toolPath.start.x, toolPath.start.y, toolPath.start.z);
-      const end = new THREE.Vector3(toolPath.end.x, toolPath.end.y, toolPath.end.z);
+    commands.forEach((command, pathIndex) => {
+      if (command.toolPath && command.toolPath.isExtrusion) {
+        const start = new THREE.Vector3(command.toolPath.start.x, command.toolPath.start.y, command.toolPath.start.z);
+        const end = new THREE.Vector3(command.toolPath.end.x, command.toolPath.end.y, command.toolPath.end.z);
       
       // Calculate the direction and length of the path
       const direction = new THREE.Vector3().subVectors(end, start);
@@ -246,7 +251,7 @@ export default function GCodeViewer({ toolPaths, defaultColor, minColor, maxColo
 
       // Calculate color for this path
       let color = 0x99FF99;
-      if (toolPath.start.z * 5 - 0.05 < accentSliders[accentIndex]?.accentLayer) {
+      if (command.toolPath.start.z * 5 - 0.05 < accentSliders[accentIndex]?.accentLayer) {
         color = 0xA52A2A;
       }
 
@@ -295,9 +300,10 @@ export default function GCodeViewer({ toolPaths, defaultColor, minColor, maxColo
 
       indexOffset += boxGeometry.attributes.position.count;
       boxGeometry.dispose();
+      }
     });
 
-    console.log(`Created geometry with ${renderedPaths.length} rendered paths out of ${toolPaths.length} total paths`);
+    console.log(`Created geometry with ${renderedPaths.length} rendered paths out of ${commands.length} total paths`);
     console.log(`Total vertices: ${vertices.length / 3}, Total indices: ${indices.length}`);
 
     // Store the rendered paths for color updates
@@ -327,7 +333,7 @@ export default function GCodeViewer({ toolPaths, defaultColor, minColor, maxColo
     geometryRef.current = geometry;
     meshRef.current = mesh;
 
-  }, [toolPaths]); // Only re-run when toolPaths change
+  }, [commands]); // Only re-run when toolPaths change
 
   // Effect for updating colors (when colors or accent sliders change)
   useEffect(() => {
@@ -346,12 +352,14 @@ export default function GCodeViewer({ toolPaths, defaultColor, minColor, maxColo
     // Calculate the min and max Z values
     var provisionalMinZ: number | undefined = undefined;
     var provisionalMaxZ: number | undefined = undefined;
-    toolPaths.forEach((toolPath) => {
-      if (provisionalMinZ === undefined || toolPath.start.z < provisionalMinZ) {
-        provisionalMinZ = toolPath.start.z;
-      }
-      if (provisionalMaxZ === undefined || toolPath.start.z > provisionalMaxZ) {
-        provisionalMaxZ = toolPath.start.z;
+    commands.forEach((command) => {
+      if (command.toolPath) {
+        if (provisionalMinZ === undefined || command.toolPath.start.z < provisionalMinZ) {
+          provisionalMinZ = command.toolPath.start.z;
+        }
+        if (provisionalMaxZ === undefined || command.toolPath.start.z > provisionalMaxZ) {
+          provisionalMaxZ = command.toolPath.start.z;
+        }
       }
     });
     if (provisionalMinZ === undefined || provisionalMaxZ === undefined) {
@@ -374,11 +382,12 @@ export default function GCodeViewer({ toolPaths, defaultColor, minColor, maxColo
 
     // Update colors only for rendered paths
     renderedPaths.forEach((pathIndex: number) => {
-      const toolPath = toolPaths[pathIndex];
+      const command = commands[pathIndex];
+      if (command.toolPath) {
       
       // Calculate color for this path
       let color = 0x99FF99;
-      if (toolPath.start.z * 5 - 0.05 < accentSliders[accentIndex]?.accentLayer) {
+      if (command.toolPath.start.z * 5 - 0.05 < accentSliders[accentIndex]?.accentLayer) {
         color = 0xA52A2A;
       }
 
@@ -397,7 +406,8 @@ export default function GCodeViewer({ toolPaths, defaultColor, minColor, maxColo
         } else {
           console.warn(`Color index ${index} out of bounds for path ${pathIndex}`);
         }
-        colorIndex++;
+          colorIndex++;
+        }
       }
     });
 
@@ -406,7 +416,7 @@ export default function GCodeViewer({ toolPaths, defaultColor, minColor, maxColo
     // Mark the attribute as needing update
     colorAttribute.needsUpdate = true;
 
-  }, [toolPaths, minColor, maxColor, accentSliders]); // Re-run when colors or accent sliders change
+  }, [commands, minColor, maxColor, accentSliders]); // Re-run when colors or accent sliders change
 
   return <div ref={containerRef} className="w-full h-full" />;
 }

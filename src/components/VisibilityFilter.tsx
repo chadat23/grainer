@@ -1,4 +1,4 @@
-import { ToolPath, Vertex } from '@/types/spatial';
+import { ToolPath, Vertex } from '@/types/command';
 
 
 //function filterExteriorPaths(points: Point[], delta: number): Line[] {

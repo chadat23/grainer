@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import { ToolPath, Vertex } from '@/types/spatial';
+import { ToolPath, Vertex } from '@/types/command';
 import { aboutEqual, isAdjacent, findToolPathLoops, perimeterLoops } from '../VisibilityFilter';
 
 describe('perimeterLoops', () => {

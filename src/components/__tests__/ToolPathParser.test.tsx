@@ -1,6 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
 import CommandParser, { makePoint, calcAngle, calcPoint } from '../CommandParser';
-import { ToolPath, Vertex } from '@/types/spatial';
+import { ToolPath, Vertex } from '@/types/command';
 import { GCodeCommand, LinearMovementCommand, ArcMovementCommand } from '@/types/gcode';
 
 describe('ToolPathParser', () => {

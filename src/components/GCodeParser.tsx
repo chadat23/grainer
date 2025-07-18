@@ -64,6 +64,9 @@ export function parseGCode(content: string): GCodeCommand[] {
         parameters: {},
         lineNumber: lineNumber
       };
+    } else {
+      // This should never happen due to the earlier check, but TypeScript needs this
+      return;
     }
 
     // Process parameters if they exist

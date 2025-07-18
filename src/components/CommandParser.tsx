@@ -1,66 +1,52 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { GCodeCommand } from '@/types/gcode';
+import { GCodeCommand, isMovementCommand } from '@/types/gcode';
 import { parseGCode } from './GCodeParser';
-import { ToolPath, Vertex, ImplementedCommand, ToolPathCommand, TempSetCommand } from '@/types/spatial';
+import { Command, ToolPath, Vertex } from '@/types/command';
+import { isTemperatureCommand } from '@/types/gcode';
 
 const radsPerArcSegment = 2 * Math.PI / 24;
   
-export default function CommandParser({ gcode }: { gcode: string }): ImplementedCommand[] {
+export default function CommandParser({ gcode }: { gcode: string }): Command[] {
   try {
     const parsedGCode = parseGCode(gcode);
+    var commands: Command[] = [];
+    var lastPoint: Vertex = { x: 0, y: 0, z: 0 };
 
-    var commands: ImplementedCommand[] = [];
-    // This seems weird but it seems to generate the correct output point
-    const firstPoints = makePoint({ x: 0, y: 0, z: 0 }, parsedGCode[0]);
-    var lastPoint: Vertex = firstPoints[firstPoints.length - 1];
-
-    for (const command of parsedGCode.slice(1)) {
-        // Handle temperature commands
-        if (command.command === 'M104' || command.command === 'M109') {
-            const tempSet: TempSetCommand = {
-                type: 'tempset',
-                lineNumber: command.lineNumber,
-                tempSet: {
-                    temperature: command.parameters.s as number || 0,
-                    tool: command.parameters.p as number
-                }
-            };
-            commands.push(tempSet);
-            continue; // Skip to next iteration
+    for (const command of parsedGCode) {
+        if (isTemperatureCommand(command)) {
+            if (command.parameters.s !== undefined && typeof command.parameters.s === 'number') {
+                commands.push({
+                    lineNumber: command.lineNumber,
+                    setTemp: {
+                        s: command.parameters.s
+                    }
+                });
+            }
         }
-
-        // Handle movement commands (G0, G1, G2, G3)
-        if (command.command === 'G0' || command.command === 'G1' || command.command === 'G2' || command.command === 'G3') {
+        if (isMovementCommand(command)) {
             const nextPoint = makePoint(lastPoint, command);
             var e = false;
             if (command.parameters.e !== undefined && typeof command.parameters.e === 'number' && command.parameters.e > 0) {
                 e = true;
             }
             if (nextPoint.length === 1) {
-                const toolPathCommand: ToolPathCommand = {
-                    type: 'toolpath',
+                commands.push({
                     lineNumber: command.lineNumber,
                     toolPath: { start: lastPoint, end: nextPoint[0], isExtrusion: e }
-                };
-                commands.push(toolPathCommand);
+                });
                 lastPoint = nextPoint[0];
             } else {
                 for (const point of nextPoint) {
-                    const toolPathCommand: ToolPathCommand = {
-                        type: 'toolpath',
+                    commands.push({
                         lineNumber: command.lineNumber,
                         toolPath: { start: lastPoint, end: point, isExtrusion: e }
-                    };
-                    commands.push(toolPathCommand);
+                    });
                     lastPoint = {...point};
                 }
             }
-            continue; // Skip to next iteration
         }
-
-        // Skip all other commands (implicitly continues to next iteration)
     }
 
     return commands;

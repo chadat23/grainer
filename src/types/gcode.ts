@@ -45,35 +45,6 @@ export interface TemperatureCommand extends GCodeCommand {
   };
 }
 
-// Fan commands (M106, M107)
-export interface FanCommand extends GCodeCommand {
-  command: 'M106' | 'M107';
-  parameters: {
-    s?: number;  // Fan speed
-    p?: number;  // Fan index
-    [key: string]: number | string | boolean | undefined;
-  };
-}
-
-// Bed leveling commands (G29)
-export interface BedLevelingCommand extends GCodeCommand {
-  command: 'G29';
-  parameters: {
-    [key: string]: number | string | boolean | undefined;
-  };
-}
-
-// Home commands (G28)
-export interface HomeCommand extends GCodeCommand {
-  command: 'G28';
-  parameters: {
-    x?: boolean;
-    y?: boolean;
-    z?: boolean;
-    [key: string]: number | string | boolean | undefined;
-  };
-}
-
 // Type guard functions to check command types
 export function isLinearMovementCommand(cmd: GCodeCommand): cmd is LinearMovementCommand {
   return cmd.command === 'G0' || cmd.command === 'G1';
@@ -83,18 +54,10 @@ export function isArcMovementCommand(cmd: GCodeCommand): cmd is ArcMovementComma
   return cmd.command === 'G2' || cmd.command === 'G3';
 }
 
+export function isMovementCommand(cmd: GCodeCommand): cmd is LinearMovementCommand | ArcMovementCommand {
+  return isLinearMovementCommand(cmd) || isArcMovementCommand(cmd);
+}
+
 export function isTemperatureCommand(cmd: GCodeCommand): cmd is TemperatureCommand {
   return cmd.command === 'M104' || cmd.command === 'M109';
 }
-
-export function isFanCommand(cmd: GCodeCommand): cmd is FanCommand {
-  return cmd.command === 'M106' || cmd.command === 'M107';
-}
-
-export function isBedLevelingCommand(cmd: GCodeCommand): cmd is BedLevelingCommand {
-  return cmd.command === 'G29';
-}
-
-export function isHomeCommand(cmd: GCodeCommand): cmd is HomeCommand {
-  return cmd.command === 'G28';
-} 
