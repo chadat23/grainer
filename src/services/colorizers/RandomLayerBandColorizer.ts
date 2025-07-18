@@ -15,8 +15,10 @@ export class LayerColorizer extends BaseColorizer {
     const transitionNominalWidth = 2;
     const transitionStandardDeviation = 0.5;
 
-    const lightColor = 0xF6C488;
-    const darkColor = 0x7D3D16;
+    // Convert minColor string to hex number for the light color
+    const lightColor = parseInt(input.minColor.replace('#', ''), 16);
+    // Convert maxColor string to hex number for the dark color
+    const darkColor = parseInt(input.maxColor.replace('#', ''), 16);
     const scaledDarkColorDeviation = darkColorDeviation; // Use the deviation directly
     
     const seed = 2; // Change this number to get different random patterns

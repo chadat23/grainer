@@ -19,8 +19,8 @@ export default function Home() {
   const [commands, setCommands] = useState<Command[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [defaultColor, setDefaultColor] = useState('#99FF99'); // Default tan color
-  const [minColor, setMinColor] = useState('#DEB887'); // Default tan color
-  const [maxColor, setMaxColor] = useState('#A52A2A'); // Default tan color
+  const [minColor, setMinColor] = useState('#F6C488'); // Default tan color
+  const [maxColor, setMaxColor] = useState('#7D3D16'); // Default tan color
   const [accentSliders, setAccentSliders] = useState([{ accentNumb: 1, accentLayer: sliderLayer, accentTemp: sliderTemp}]);
 
   useEffect(() => {
