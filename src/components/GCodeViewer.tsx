@@ -248,71 +248,73 @@ export default function GCodeViewer({
     // Create box geometry for each path and merge into single buffer
     commands.forEach((command, pathIndex) => {
       if (command.toolPath && command.toolPath.isExtrusion) {
-        const start = new THREE.Vector3(command.toolPath.start.x, command.toolPath.start.y, command.toolPath.start.z);
-        const end = new THREE.Vector3(command.toolPath.end.x, command.toolPath.end.y, command.toolPath.end.z);
+        const start = new THREE.Vector3(-command.toolPath.start.x + 128, command.toolPath.start.z, -command.toolPath.start.y + 128);
+        const end = new THREE.Vector3(-command.toolPath.end.x + 128, command.toolPath.end.z, -command.toolPath.end.y + 128);
+        //const start = new THREE.Vector3(command.toolPath.start.x, command.toolPath.start.y, command.toolPath.start.z);
+        //const end = new THREE.Vector3(command.toolPath.end.x, command.toolPath.end.y, command.toolPath.end.z);
       
-      // Calculate the direction and length of the path
-      const direction = new THREE.Vector3().subVectors(end, start);
-      const length = direction.length();
-      direction.normalize();
+        // Calculate the direction and length of the path
+        const direction = new THREE.Vector3().subVectors(end, start);
+        const length = direction.length();
+        direction.normalize();
 
-      // Skip very short paths to reduce geometry
-      if (length < 0.01) {
-        //console.log(`Skipping short path ${pathIndex}, length: ${length}`);
-        return;
-      }
-
-      // Track that this path is being rendered
-      renderedPaths.push(pathIndex);
-
-      // Calculate color for this path (will be updated by colorizer)
-      let color = 0x99FF99;
-
-      // Convert hex color to RGB
-      const r = (color >> 16) & 0xFF;
-      const g = (color >> 8) & 0xFF;
-      const b = color & 0xFF;
-
-      // Create a box geometry for this path
-      const boxGeometry = new THREE.BoxGeometry(length, pathHeight, pathWidth);
-      
-      // Create a temporary mesh for transformation
-      const tempMesh = new THREE.Mesh(boxGeometry);
-      
-      // Position at midpoint
-      tempMesh.position.copy(start).add(end).multiplyScalar(0.5);
-      
-      // Look at the end point
-      tempMesh.lookAt(end);
-      
-      // Rotate to align the length with the path direction
-      tempMesh.rotateY(Math.PI / 2);
-      
-      // Update the world matrix
-      tempMesh.updateMatrixWorld();
-      
-      // Extract vertices and transform them
-      const positions = boxGeometry.attributes.position.array as Float32Array;
-      const boxIndices = boxGeometry.index?.array as Uint16Array;
-
-      // Add vertices for this box
-      for (let i = 0; i < positions.length; i += 3) {
-        const vertex = new THREE.Vector3(positions[i], positions[i + 1], positions[i + 2]);
-        vertex.applyMatrix4(tempMesh.matrixWorld);
-        
-        vertices.push(vertex.x, vertex.y, vertex.z);
-        colors.push(r / 255, g / 255, b / 255);
-      }
-
-      // Add indices for this box
-      if (boxIndices) {
-        for (let i = 0; i < boxIndices.length; i++) {
-          indices.push(boxIndices[i] + indexOffset);
+        // Skip very short paths to reduce geometry
+        if (length < 0.01) {
+          //console.log(`Skipping short path ${pathIndex}, length: ${length}`);
+          return;
         }
-      }
 
-      indexOffset += boxGeometry.attributes.position.count;
-      boxGeometry.dispose();
+        // Track that this path is being rendered
+        renderedPaths.push(pathIndex);
+
+        // Calculate color for this path (will be updated by colorizer)
+        let color = 0x99FF99;
+
+        // Convert hex color to RGB
+        const r = (color >> 16) & 0xFF;
+        const g = (color >> 8) & 0xFF;
+        const b = color & 0xFF;
+
+        // Create a box geometry for this path
+        const boxGeometry = new THREE.BoxGeometry(length, pathHeight, pathWidth);
+      
+        // Create a temporary mesh for transformation
+        const tempMesh = new THREE.Mesh(boxGeometry);
+      
+        // Position at midpoint
+        tempMesh.position.copy(start).add(end).multiplyScalar(0.5);
+      
+        // Look at the end point
+        tempMesh.lookAt(end);
+      
+        // Rotate to align the length with the path direction
+        tempMesh.rotateY(Math.PI / 2);
+      
+        // Update the world matrix
+        tempMesh.updateMatrixWorld();
+      
+        // Extract vertices and transform them
+        const positions = boxGeometry.attributes.position.array as Float32Array;
+        const boxIndices = boxGeometry.index?.array as Uint16Array;
+
+        // Add vertices for this box
+        for (let i = 0; i < positions.length; i += 3) {
+          const vertex = new THREE.Vector3(positions[i], positions[i + 1], positions[i + 2]);
+          vertex.applyMatrix4(tempMesh.matrixWorld);
+          
+          vertices.push(vertex.x, vertex.y, vertex.z);
+          colors.push(r / 255, g / 255, b / 255);
+        }
+
+        // Add indices for this box
+        if (boxIndices) {
+          for (let i = 0; i < boxIndices.length; i++) {
+            indices.push(boxIndices[i] + indexOffset);
+          }
+        }
+
+        indexOffset += boxGeometry.attributes.position.count;
+        boxGeometry.dispose();
       }
     });
 
