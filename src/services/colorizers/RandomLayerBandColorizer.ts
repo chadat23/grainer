@@ -7,13 +7,13 @@ export class LayerColorizer extends BaseColorizer {
   calculateColors(input: ColorizerInput): ColorizerOutput {
     const lineColors = new Map<number, number>();
     
-    const lightNominalWidth = 10;
-    const lightWidthStandardDeviation = 3;
-    const darkNominalWidth = 1;
-    const darkWidthStandardDeviation = 1;
+    const lightNominalWidth = input.lightNominalWidth || 10;
+    const lightWidthStandardDeviation = input.lightWidthStandardDeviation || 3;
+    const darkNominalWidth = input.darkNominalWidth || 1;
+    const darkWidthStandardDeviation = input.darkWidthStandardDeviation || 1;
     const darkColorDeviation = 0.2; // Much smaller deviation
-    const transitionNominalWidth = 2;
-    const transitionStandardDeviation = 0.5;
+    const transitionNominalWidth = input.transitionNominalWidth || 2;
+    const transitionStandardDeviation = input.transitionStandardDeviation || 0.5;
 
     // Convert minColor string to hex number for the light color
     const lightColor = parseInt(input.minColor.replace('#', ''), 16);
@@ -21,7 +21,7 @@ export class LayerColorizer extends BaseColorizer {
     const darkColor = parseInt(input.maxColor.replace('#', ''), 16);
     const scaledDarkColorDeviation = darkColorDeviation; // Use the deviation directly
     
-    const seed = 2; // Change this number to get different random patterns
+    const seed = input.seed || 2; // Use the seed from input
     const rng = new SeedableRandom(seed);
 
     var height = -10;

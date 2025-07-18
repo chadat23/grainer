@@ -9,27 +9,33 @@ import { BaseColorizer, ColorizerFactory, ColorizerType } from '@/services/color
 interface GCodeViewerProps {
   commands: Command[];
   colorizerType: ColorizerType; // Required - no default
-  defaultColor: string;
   minColor: string;
   maxColor: string;
+  lightNominalWidth: number;
+  lightWidthStandardDeviation: number;
+  darkNominalWidth: number;
+  darkWidthStandardDeviation: number;
+  transitionNominalWidth: number;
+  transitionStandardDeviation: number;
+  seed: number;
   cameraVertex: Vertex;
   lookAtVertex: Vertex;
-  accentSliders: {
-    accentNumb: number;
-    accentLayer: number;
-    accentTemp: number;
-  }[];
 }
 
 export default function GCodeViewer({ 
   commands, 
   colorizerType, 
-  defaultColor, 
   minColor, 
   maxColor, 
+  lightNominalWidth,
+  lightWidthStandardDeviation,
+  darkNominalWidth,
+  darkWidthStandardDeviation,
+  transitionNominalWidth,
+  transitionStandardDeviation,
+  seed,
   cameraVertex, 
-  lookAtVertex, 
-  accentSliders 
+  lookAtVertex 
 }: GCodeViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -43,9 +49,9 @@ export default function GCodeViewer({
 
   // Effect for initial setup of scene, camera, renderer, and controls
   useEffect(() => {
-    console.log("GCodeViewer useEffect called");
+    //console.log("GCodeViewer useEffect called");
     if (!containerRef.current) {
-      console.log('Container ref not available');
+      //console.log('Container ref not available');
       return;
     }
 
@@ -236,15 +242,8 @@ export default function GCodeViewer({
     const minZ = provisionalMinZ!;
     const maxZ = provisionalMaxZ!;
 
-    // Get the min and max temp from the accent sliders
-    const minTemp = accentSliders.reduce((min, slider) => Math.min(min, slider.accentTemp), Infinity);
-    const maxTemp = accentSliders.reduce((max, slider) => Math.max(max, slider.accentTemp), -Infinity);
-
-    const defaultColorInt = parseInt(defaultColor.slice(1), 16);
     const minColorInt = parseInt(minColor.slice(1), 16);
     const maxColorInt = parseInt(maxColor.slice(1), 16);
-
-    var accentIndex = 0;
 
     // Create box geometry for each path and merge into single buffer
     commands.forEach((command, pathIndex) => {
@@ -266,11 +265,8 @@ export default function GCodeViewer({
       // Track that this path is being rendered
       renderedPaths.push(pathIndex);
 
-      // Calculate color for this path
+      // Calculate color for this path (will be updated by colorizer)
       let color = 0x99FF99;
-      if (command.toolPath.start.z * 5 - 0.05 < accentSliders[accentIndex]?.accentLayer) {
-        color = 0xA52A2A;
-      }
 
       // Convert hex color to RGB
       const r = (color >> 16) & 0xFF;
@@ -370,10 +366,15 @@ export default function GCodeViewer({
     const colorizer = colorizerRef.current;
     const { lineColors } = colorizer.calculateColors({
       commands,
-      accentSliders,
-      defaultColor,
       minColor,
-      maxColor
+      maxColor,
+      lightNominalWidth,
+      lightWidthStandardDeviation,
+      darkNominalWidth,
+      darkWidthStandardDeviation,
+      transitionNominalWidth,
+      transitionStandardDeviation,
+      seed
     });
 
     let colorIndex = 0;
@@ -410,7 +411,7 @@ export default function GCodeViewer({
     // Mark the attribute as needing update
     colorAttribute.needsUpdate = true;
 
-  }, [commands, minColor, maxColor, accentSliders, colorizerType]); // Re-run when colors, accent sliders, or colorizer type change
+  }, [commands, minColor, maxColor, lightNominalWidth, lightWidthStandardDeviation, darkNominalWidth, darkWidthStandardDeviation, transitionNominalWidth, transitionStandardDeviation, seed, colorizerType]); // Re-run when colors, accent sliders, or colorizer type change
 
   return <div ref={containerRef} className="w-full h-full" />;
 }

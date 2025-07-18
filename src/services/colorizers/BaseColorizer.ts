@@ -2,12 +2,12 @@ import { Command } from '@/types/command';
 
 export interface ColorizerInput {
   commands: Command[];
-  accentSliders: {
+  accentSliders?: {
     accentNumb: number;
     accentLayer: number;
     accentTemp: number;
   }[];
-  defaultColor: string;
+  defaultColor?: string;
   minColor: string;
   maxColor: string;
   // Additional properties that different colorizers might need
