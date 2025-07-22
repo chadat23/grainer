@@ -117,8 +117,11 @@ export default function GCodeViewer({
       0.1,
       cameraZ * 10
     );
+    
+    // Set initial camera position and target
     camera.position.set(cameraVertex.x, cameraVertex.y, cameraVertex.z);
-    camera.lookAt(new THREE.Vector3(lookAtVertex.x, lookAtVertex.y, lookAtVertex.z));
+    const lookAtPoint = new THREE.Vector3(lookAtVertex.x, lookAtVertex.y, lookAtVertex.z);
+    camera.lookAt(lookAtPoint);
     cameraRef.current = camera;
 
     // Renderer setup
@@ -131,10 +134,12 @@ export default function GCodeViewer({
 
     // Controls setup
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = false;
-    controls.dampingFactor = 0;
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
     controls.rotateSpeed = 1.0;
-    controls.target.copy(center);
+    controls.zoomSpeed = 1.0;
+    controls.panSpeed = 1.0;
+    controls.target.copy(lookAtPoint); // Use the same lookAt point as the camera
     controls.minDistance = maxDim * 0.01;
     controls.maxDistance = maxDim * 2;
 
