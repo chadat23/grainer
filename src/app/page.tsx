@@ -15,6 +15,24 @@ const sliderLayer = 1;
 const sliderMinLayer = 1;
 const sliderMaxLayer = 100;
 
+function calculateSliderValues(commands: Command[]) {
+        const maxZ = Math.max(...commands.map(cmd => cmd.toolPath?.start.z || 0));
+        const calculatedLightWidth = parseFloat(Math.max(1, (maxZ - 100) / 50).toFixed(0));
+        const calculatedLightWidthStandardDeviation = parseFloat(Math.max(0.1, (maxZ - 100) / 100).toFixed(1));
+        const calculatedDarkWidth = parseFloat(Math.max(0.1, (maxZ - 100) / 150).toFixed(1));
+        const calculatedDarkWidthStandardDeviation = parseFloat(Math.max(0.1, (maxZ - 100) / 150).toFixed(1));
+        const calculatedTransitionWidth = parseFloat(Math.max(0.1, (maxZ - 100) / 100).toFixed(1));
+        const calculatedTransitionWidthStandardDeviation = parseFloat(Math.max(0.1, (maxZ - 100) / 300).toFixed(1));
+        return {
+            lightNominalWidth: calculatedLightWidth,
+            lightWidthStandardDeviation: calculatedLightWidthStandardDeviation,
+            darkNominalWidth: calculatedDarkWidth,
+            darkWidthStandardDeviation: calculatedDarkWidthStandardDeviation,
+            transitionNominalWidth: calculatedTransitionWidth,
+            transitionWidthStandardDeviation: calculatedTransitionWidthStandardDeviation,
+        }
+}
+
 export default function Home() {
   const [commands, setCommands] = useState<Command[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +62,15 @@ export default function Home() {
         const text = e.target?.result as string;
         const newCommands = CommandParser({ gcode: text });
         setCommands(newCommands);
+        
+        const { lightNominalWidth, lightWidthStandardDeviation, darkNominalWidth, darkWidthStandardDeviation, transitionNominalWidth, transitionWidthStandardDeviation } = calculateSliderValues(newCommands);
+        setLightNominalWidth(lightNominalWidth);
+        setLightWidthStandardDeviation(lightWidthStandardDeviation);
+        setDarkNominalWidth(darkNominalWidth);
+        setDarkWidthStandardDeviation(darkWidthStandardDeviation);
+        setTransitionNominalWidth(transitionNominalWidth);
+        setTransitionStandardDeviation(transitionWidthStandardDeviation);
+        
         setError(null);
       };
       reader.readAsText(file);
@@ -77,6 +104,14 @@ export default function Home() {
         const text = await response.text();
         const newCommands = CommandParser({ gcode: text });
         setCommands(newCommands);
+        
+        const { lightNominalWidth, lightWidthStandardDeviation, darkNominalWidth, darkWidthStandardDeviation, transitionNominalWidth, transitionWidthStandardDeviation } = calculateSliderValues(newCommands);
+        setLightNominalWidth(lightNominalWidth);
+        setLightWidthStandardDeviation(lightWidthStandardDeviation);
+        setDarkNominalWidth(darkNominalWidth);
+        setDarkWidthStandardDeviation(darkWidthStandardDeviation);
+        setTransitionNominalWidth(transitionNominalWidth);
+        setTransitionStandardDeviation(transitionWidthStandardDeviation);
       } catch (err) {
         console.error('Error loading G-code:', err);
         setError(err instanceof Error ? err.message : 'Failed to load G-code file');

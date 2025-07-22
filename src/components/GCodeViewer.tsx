@@ -12,7 +12,6 @@ interface GCodeViewerProps {
   minColor: string;
   maxColor: string;
   minTempText: string;
-  maxTempText: string;
   nominalDarkTempText: string;
   maxDarkTempText: string;
   darkTempDeviation: number;
@@ -33,7 +32,6 @@ export default function GCodeViewer({
   minColor, 
   maxColor, 
   minTempText, 
-  maxTempText, 
   nominalDarkTempText,
   maxDarkTempText,
   darkTempDeviation,
