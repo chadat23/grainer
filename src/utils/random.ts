@@ -66,10 +66,6 @@ export class SeedableRandom {
     return Math.max(min, Math.min(max, value));
   }
 
-  public nextNormalTempClamped(temp: number, standardDeviation: number, minTemp: number, maxTemp: number): number {
-    return this.nextNormalClamped(temp, standardDeviation, minTemp, maxTemp);
-  }
-
   public nextNormalColorClamped(color: number, standardDeviation: number, min: number, max: number): number {
     const r = (color >> 16) & 0xFF;
     const g = (color >> 8) & 0xFF;

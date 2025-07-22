@@ -8,7 +8,8 @@ export interface TempGeneratorInput {
     accentTemp: number;
   }[];
   minTemp: number;
-  maxTemp: number;
+  nominalDarkTemp: number;
+  maxDarkTemp: number;
   // Additional properties that different colorizers might need
   [key: string]: any;
 }

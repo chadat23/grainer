@@ -21,7 +21,8 @@ export default function Home() {
   const [minColor, setMinColor] = useState('#F6C488'); // Default tan color
   const [maxColor, setMaxColor] = useState('#7D3D16'); // Default tan color
   const [minTempText, setMinTempText] = useState('170'); // Default min temp text
-  const [maxTempText, setMaxTempText] = useState('250'); // Default max temp text
+  const [nominalDarkTempText, setNominalDarkTempText] = useState('250'); // Default nominal dark temp
+  const [maxDarkTempText, setMaxDarkTempText] = useState('300'); // Default max dark temp (clipping limit)
   const [darkTempDeviation, setDarkTempDeviation] = useState(50); // Default dark temp deviation
   const [removeBambuProme, setRemoveBambuProme] = useState(true); // Default to checked
   const [filteredCommands, setFilteredCommands] = useState<Command[]>([]); // Filtered commands for display
@@ -54,12 +55,12 @@ export default function Home() {
     // This function will receive:
     // - sourceFile: File | null (the uploaded G-code file)
     // - minTempText: string (minimum temperature)
-    // - maxTempText: string (maximum temperature) 
+    // - nominalDarkTempText: string (nominal dark temperature) 
     // - commands: Command[] (all parsed commands)
     console.log('Save button clicked');
     console.log('Source file:', sourceFile);
     console.log('Min temp:', minTempText);
-    console.log('Max temp:', maxTempText);
+    console.log('Nominal dark temp:', nominalDarkTempText);
     console.log('Commands:', commands);
   };
 
@@ -177,13 +178,13 @@ export default function Home() {
         </div>
         <div className="space-y-2">
           <label htmlFor="maxColor" className="block text-sm font-medium text-gray-300">
-            Maximum Temperature & Color
+            Nominal Dark Temperature & Color
           </label>
           <div className="flex items-center space-x-3">
             <input
               type="text"
-              value={maxTempText}
-              onChange={(e) => setMaxTempText(e.target.value)}
+              value={nominalDarkTempText}
+              onChange={(e) => setNominalDarkTempText(e.target.value)}
               className="w-20 p-1 text-center bg-gray-700 border border-gray-600 rounded text-sm"
               placeholder="250"
             />
@@ -198,6 +199,20 @@ export default function Home() {
           </div>
         </div>
         <div className="space-y-2">
+          <label htmlFor="maxDarkTempText" className="block text-sm font-medium text-gray-300">
+            Max Dark Temperature (Clipping Limit)
+          </label>
+          <div className="flex items-center space-x-3">
+            <input
+              type="text"
+              value={maxDarkTempText}
+              onChange={(e) => setMaxDarkTempText(e.target.value)}
+              className="w-20 p-1 text-center bg-gray-700 border border-gray-600 rounded text-sm"
+              placeholder="300"
+            />
+          </div>
+        </div>
+        <div className="space-y-2">
           <label htmlFor="darkTempDeviation" className="block text-sm font-medium text-gray-300">
             Dark Temperature Deviation
           </label>
@@ -207,7 +222,7 @@ export default function Home() {
               id="darkTempDeviation"
               min="0"
               max="100"
-              step="5"
+              step="1"
               value={darkTempDeviation}
               onChange={(e) => setDarkTempDeviation(parseFloat(e.target.value))}
               className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-gray-700 accent-blue-500"
@@ -389,7 +404,8 @@ export default function Home() {
           minColor={minColor} 
           maxColor={maxColor} 
           minTempText={minTempText}
-          maxTempText={maxTempText}
+          nominalDarkTempText={nominalDarkTempText}
+          maxDarkTempText={maxDarkTempText}
           darkTempDeviation={darkTempDeviation}
           lightNominalWidth={lightNominalWidth}
           lightWidthStandardDeviation={lightWidthStandardDeviation}

@@ -13,6 +13,8 @@ interface GCodeViewerProps {
   maxColor: string;
   minTempText: string;
   maxTempText: string;
+  nominalDarkTempText: string;
+  maxDarkTempText: string;
   darkTempDeviation: number;
   lightNominalWidth: number;
   lightWidthStandardDeviation: number;
@@ -32,6 +34,8 @@ export default function GCodeViewer({
   maxColor, 
   minTempText, 
   maxTempText, 
+  nominalDarkTempText,
+  maxDarkTempText,
   darkTempDeviation,
   lightNominalWidth,
   lightWidthStandardDeviation,
@@ -372,7 +376,8 @@ export default function GCodeViewer({
     const { lineTemps } = tempGenerator.calculateTemps({
       commands,
       minTemp: parseInt(minTempText),
-      maxTemp: parseInt(maxTempText),
+      nominalDarkTemp: parseInt(nominalDarkTempText),
+      maxDarkTemp: parseInt(maxDarkTempText),
       darkTempDeviation,
       lightNominalWidth,
       lightWidthStandardDeviation,
@@ -398,6 +403,14 @@ export default function GCodeViewer({
     const maxB = maxColorInt & 0xFF;
 
     let colorIndex = 0;
+    const minTemp = parseInt(minTempText);
+    const maxTemp = parseInt(maxDarkTempText);
+
+    lineTemps.forEach((temp, lineNumber) => {
+      if (temp !== 170) {
+        console.log("lineNumber: ", lineNumber, "temp: ", temp);
+      }
+    });
 
     // Update colors only for rendered paths
     renderedPaths.forEach((pathIndex: number) => {
@@ -407,13 +420,12 @@ export default function GCodeViewer({
         const temp = lineTemps.get(command.lineNumber) || 200; // Default temp if not found
         
         // Convert temperature to color using min/max temp range
-        const minTemp = parseInt(minTempText);
-        const maxTemp = parseInt(maxTempText);
-        const t = Math.max(0, Math.min(1, (temp - minTemp) / (maxTemp - minTemp)));
+        const nominalDarkTemp = parseInt(nominalDarkTempText);
+        const t = Math.max(0, (temp - minTemp) / (nominalDarkTemp - minTemp));
         
-        const r = minR + (maxR - minR) * t;
-        const g = minG + (maxG - minG) * t;
-        const b = minB + (maxB - minB) * t;
+        const r = Math.min(minR + (maxR - minR) * t, 255);
+        const g = Math.min(minG + (maxG - minG) * t, 255);
+        const b = Math.min(minB + (maxB - minB) * t, 255);
 
         // Update colors for all vertices of this path (24 vertices per box)
         for (let i = 0; i < 24; i++) {
@@ -430,12 +442,14 @@ export default function GCodeViewer({
       }
     });
 
+    console.log("lineTemps: ", lineTemps);
+
     console.log(`Updated colors for ${renderedPaths.length} paths, total color vertices: ${colorIndex}`);
 
     // Mark the attribute as needing update
     colorAttribute.needsUpdate = true;
 
-  }, [commands, minColor, maxColor, minTempText, maxTempText, darkTempDeviation, lightNominalWidth, lightWidthStandardDeviation, darkNominalWidth, darkWidthStandardDeviation, transitionNominalWidth, transitionStandardDeviation, seed]); // Re-run when any parameter changes
+  }, [commands, minColor, maxColor, minTempText, nominalDarkTempText, maxDarkTempText, darkTempDeviation, lightNominalWidth, lightWidthStandardDeviation, darkNominalWidth, darkWidthStandardDeviation, transitionNominalWidth, transitionStandardDeviation, seed]); // Re-run when any parameter changes
 
   return <div ref={containerRef} className="w-full h-full" />;
 }

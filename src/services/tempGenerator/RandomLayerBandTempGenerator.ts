@@ -11,11 +11,12 @@ export class RandomLayerBandTempGenerator extends BaseTempGenerator {
     const lightWidthStandardDeviation = input.lightWidthStandardDeviation || 3;
     const darkNominalWidth = input.darkNominalWidth || 1;
     const darkWidthStandardDeviation = input.darkWidthStandardDeviation || 1;
-    const darkTempDeviation = input.darkTempDeviation || 50; // Use input value or default to 50
+    const darkTempDeviation = input.darkTempDeviation !== undefined ? input.darkTempDeviation : 50; // Use input value or default to 50
     const transitionNominalWidth = input.transitionNominalWidth || 2;
     const transitionStandardDeviation = input.transitionStandardDeviation || 0.5;
     const lightTemp = input.minTemp || 170;
-    const darkTemp = input.maxTemp || 250;
+    const darkNominalTemp = input.nominalDarkTemp || 250;
+    const maxDarkTemp = input.maxDarkTemp || 300;
 
     const seed = input.seed || 2; // Use the seed from input
     const rng = new SeedableRandom(seed);
@@ -31,7 +32,7 @@ export class RandomLayerBandTempGenerator extends BaseTempGenerator {
         heights[heights.length - 1][1] + rng.nextNormalClamped(transitionNominalWidth, transitionStandardDeviation, 0, 1e6),
         heights[heights.length - 1][3],
         0,
-        rng.nextNormalTempClamped(darkTemp, darkTempDeviation, lightTemp, darkTemp)
+        rng.nextNormalClamped(darkNominalTemp, darkTempDeviation, lightTemp, maxDarkTemp)
       ]);
       // Dark
       heights.push([
