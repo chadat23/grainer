@@ -1,5 +1,5 @@
 import { Command } from '@/types/command';
-import { BaseColorizer, ColorizerInput, ColorizerOutput } from './BaseColorizer';
+import { BaseColorizer, ColorizerInput, ColorizerOutput } from './BaseTempGenerator';
 import { SeedableRandom } from '@/utils/random';
 
 export class LayerColorizer extends BaseColorizer {

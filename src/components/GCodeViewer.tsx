@@ -4,13 +4,16 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Command, Vertex } from '@/types/command';
-import { BaseColorizer, ColorizerFactory, ColorizerType } from '@/services/colorizers';
+import { BaseTempGenerator, TempGeneratorFactory, TempGeneratorType } from '@/services/tempGenerator';
 
 interface GCodeViewerProps {
   commands: Command[];
-  colorizerType: ColorizerType; // Required - no default
+  tempGeneratorType: TempGeneratorType; // Required - no default
   minColor: string;
   maxColor: string;
+  minTempText: string;
+  maxTempText: string;
+  darkTempDeviation: number;
   lightNominalWidth: number;
   lightWidthStandardDeviation: number;
   darkNominalWidth: number;
@@ -24,9 +27,12 @@ interface GCodeViewerProps {
 
 export default function GCodeViewer({ 
   commands, 
-  colorizerType, 
+  tempGeneratorType, 
   minColor, 
   maxColor, 
+  minTempText, 
+  maxTempText, 
+  darkTempDeviation,
   lightNominalWidth,
   lightWidthStandardDeviation,
   darkNominalWidth,
@@ -45,7 +51,7 @@ export default function GCodeViewer({
   const geometryRef = useRef<THREE.BufferGeometry | null>(null);
   const meshRef = useRef<THREE.Mesh | null>(null);
   const renderedPathsRef = useRef<number[]>([]);
-  const colorizerRef = useRef<BaseColorizer>(ColorizerFactory.createColorizer(colorizerType));
+  const tempGeneratorRef = useRef<BaseTempGenerator>(TempGeneratorFactory.createTempGenerator(tempGeneratorType));
 
   // Effect for initial setup of scene, camera, renderer, and controls
   useEffect(() => {
@@ -188,8 +194,8 @@ export default function GCodeViewer({
 
   // Effect for handling colorizer type changes
   useEffect(() => {
-    colorizerRef.current = ColorizerFactory.createColorizer(colorizerType);
-  }, [colorizerType]);
+    tempGeneratorRef.current = TempGeneratorFactory.createTempGenerator(tempGeneratorType);
+  }, [tempGeneratorType]);
 
   // Effect for creating the optimized geometry (only when toolPaths change)
   useEffect(() => {
@@ -241,9 +247,6 @@ export default function GCodeViewer({
     }
     const minZ = provisionalMinZ!;
     const maxZ = provisionalMaxZ!;
-
-    const minColorInt = parseInt(minColor.slice(1), 16);
-    const maxColorInt = parseInt(maxColor.slice(1), 16);
 
     // Create box geometry for each path and merge into single buffer
     commands.forEach((command, pathIndex) => {
@@ -350,7 +353,7 @@ export default function GCodeViewer({
 
   }, [commands]); // Only re-run when toolPaths change
 
-  // Effect for updating colors (when colors or accent sliders change)
+  // Effect for updating colors (when colors change)
   useEffect(() => {
     console.log("GCodeViewer color update useEffect called");
     if (!geometryRef.current || !meshRef.current) {
@@ -364,12 +367,13 @@ export default function GCodeViewer({
     const colors = colorAttribute.array as Float32Array;
     const renderedPaths = renderedPathsRef.current || [];
     
-    // Use the LayerColorizer to calculate colors
-    const colorizer = colorizerRef.current;
-    const { lineColors } = colorizer.calculateColors({
+    // Use the tempGenerator to calculate temperatures
+    const tempGenerator = tempGeneratorRef.current;
+    const { lineTemps } = tempGenerator.calculateTemps({
       commands,
-      minColor,
-      maxColor,
+      minTemp: parseInt(minTempText),
+      maxTemp: parseInt(maxTempText),
+      darkTempDeviation,
       lightNominalWidth,
       lightWidthStandardDeviation,
       darkNominalWidth,
@@ -378,6 +382,20 @@ export default function GCodeViewer({
       transitionStandardDeviation,
       seed
     });
+    
+    console.log("lineTemps: ", lineTemps);
+
+    // Convert hex colors to RGB for interpolation
+    const minColorInt = parseInt(minColor.slice(1), 16);
+    const maxColorInt = parseInt(maxColor.slice(1), 16);
+    
+    const minR = (minColorInt >> 16) & 0xFF;
+    const minG = (minColorInt >> 8) & 0xFF;
+    const minB = minColorInt & 0xFF;
+    
+    const maxR = (maxColorInt >> 16) & 0xFF;
+    const maxG = (maxColorInt >> 8) & 0xFF;
+    const maxB = maxColorInt & 0xFF;
 
     let colorIndex = 0;
 
@@ -385,13 +403,17 @@ export default function GCodeViewer({
     renderedPaths.forEach((pathIndex: number) => {
       const command = commands[pathIndex];
       if (command.toolPath) {
-        // Get color from the colorizer
-        const color = lineColors.get(command.lineNumber) || 0x99FF99;
-
-        // Convert hex color to RGB
-        const r = (color >> 16) & 0xFF;
-        const g = (color >> 8) & 0xFF;
-        const b = color & 0xFF;
+        // Get temperature from tempGenerator
+        const temp = lineTemps.get(command.lineNumber) || 200; // Default temp if not found
+        
+        // Convert temperature to color using min/max temp range
+        const minTemp = parseInt(minTempText);
+        const maxTemp = parseInt(maxTempText);
+        const t = Math.max(0, Math.min(1, (temp - minTemp) / (maxTemp - minTemp)));
+        
+        const r = minR + (maxR - minR) * t;
+        const g = minG + (maxG - minG) * t;
+        const b = minB + (maxB - minB) * t;
 
         // Update colors for all vertices of this path (24 vertices per box)
         for (let i = 0; i < 24; i++) {
@@ -413,51 +435,51 @@ export default function GCodeViewer({
     // Mark the attribute as needing update
     colorAttribute.needsUpdate = true;
 
-  }, [commands, minColor, maxColor, lightNominalWidth, lightWidthStandardDeviation, darkNominalWidth, darkWidthStandardDeviation, transitionNominalWidth, transitionStandardDeviation, seed, colorizerType]); // Re-run when colors, accent sliders, or colorizer type change
+  }, [commands, minColor, maxColor, minTempText, maxTempText, darkTempDeviation, lightNominalWidth, lightWidthStandardDeviation, darkNominalWidth, darkWidthStandardDeviation, transitionNominalWidth, transitionStandardDeviation, seed]); // Re-run when any parameter changes
 
   return <div ref={containerRef} className="w-full h-full" />;
 }
 
-function calcTempsColor(minColor: number, maxColor: number, minTemp: number, maxTemp: number, thisTemp: number): number {
-  const minR = (minColor >> 16) & 0xFF;
-  const minG = (minColor >> 8) & 0xFF;
-  const minB = minColor & 0xFF;
-  const maxR = (maxColor >> 16) & 0xFF;
-  const maxG = (maxColor >> 8) & 0xFF;
-  const maxB = maxColor & 0xFF;
+//function calcTempsColor(minColor: number, maxColor: number, minTemp: number, maxTemp: number, thisTemp: number): number {
+//  const minR = (minColor >> 16) & 0xFF;
+//  const minG = (minColor >> 8) & 0xFF;
+//  const minB = minColor & 0xFF;
+//  const maxR = (maxColor >> 16) & 0xFF;
+//  const maxG = (maxColor >> 8) & 0xFF;
+//  const maxB = maxColor & 0xFF;
+//
+//  const rDelta = maxR - minR;
+//  const gDelta = maxG - minG;
+//  const bDelta = maxB - minB;
+//
+//  const r = minR + rDelta * (thisTemp - minTemp) / (maxTemp - minTemp);
+//  const g = minG + gDelta * (thisTemp - minTemp) / (maxTemp - minTemp);
+//  const b = minB + bDelta * (thisTemp - minTemp) / (maxTemp - minTemp);
+//
+//  return (r << 16) | (g << 8) | b;
+//}
 
-  const rDelta = maxR - minR;
-  const gDelta = maxG - minG;
-  const bDelta = maxB - minB;
-
-  const r = minR + rDelta * (thisTemp - minTemp) / (maxTemp - minTemp);
-  const g = minG + gDelta * (thisTemp - minTemp) / (maxTemp - minTemp);
-  const b = minB + bDelta * (thisTemp - minTemp) / (maxTemp - minTemp);
-
-  return (r << 16) | (g << 8) | b;
-}
-
-function calcLayerTemp(lastTemp: number, nextTemp: number, lastLayer: number, thisLayer: number, nextLayer: number): number {
-  const tempDelta = nextTemp - lastTemp;
-  const layerDelta = nextLayer - lastLayer;
-
-  const temp = lastTemp + tempDelta * (thisLayer - lastLayer) / layerDelta;
-  return temp;
-}
+//function calcLayerTemp(lastTemp: number, nextTemp: number, lastLayer: number, thisLayer: number, nextLayer: number): number {
+//  const tempDelta = nextTemp - lastTemp;
+//  const layerDelta = nextLayer - lastLayer;
+//
+//  const temp = lastTemp + tempDelta * (thisLayer - lastLayer) / layerDelta;
+//  return temp;
+//}
 
 // interpolate between two colors and return a hex color
-function calcColor(
-  minColor: number, 
-  maxColor: number, 
-  minTemp: number, 
-  maxTemp: number, 
-  lastTemp: number, 
-  nextTemp: number, 
-  lastLayer: number, 
-  thisLayer: number, 
-  nextLayer: number): number {
-
-  const thisTemp = calcLayerTemp(lastTemp, nextTemp, lastLayer, thisLayer, nextLayer);
-  const thisColor = calcTempsColor(minColor, maxColor, minTemp, maxTemp, thisTemp);
-  return thisColor;
-}
+//function calcColor(
+//  minColor: number, 
+//  maxColor: number, 
+//  minTemp: number, 
+//  maxTemp: number, 
+//  lastTemp: number, 
+//  nextTemp: number, 
+//  lastLayer: number, 
+//  thisLayer: number, 
+//  nextLayer: number): { color: number, temp: number } {
+//
+//  const thisTemp = calcLayerTemp(lastTemp, nextTemp, lastLayer, thisLayer, nextLayer);
+//  const thisColor = calcTempsColor(minColor, maxColor, minTemp, maxTemp, thisTemp);
+//  return { color: thisColor, temp: thisTemp };
+//}

@@ -22,8 +22,10 @@ export default function Home() {
   const [maxColor, setMaxColor] = useState('#7D3D16'); // Default tan color
   const [minTempText, setMinTempText] = useState('170'); // Default min temp text
   const [maxTempText, setMaxTempText] = useState('250'); // Default max temp text
+  const [darkTempDeviation, setDarkTempDeviation] = useState(50); // Default dark temp deviation
   const [removeBambuProme, setRemoveBambuProme] = useState(true); // Default to checked
   const [filteredCommands, setFilteredCommands] = useState<Command[]>([]); // Filtered commands for display
+  const [sourceFile, setSourceFile] = useState<File | null>(null); // Store the uploaded file
   const [lightNominalWidth, setLightNominalWidth] = useState(10); // Default light nominal width
   const [lightWidthStandardDeviation, setLightWidthStandardDeviation] = useState(3); // Default light width standard deviation
   const [darkNominalWidth, setDarkNominalWidth] = useState(1); // Default dark nominal width
@@ -35,6 +37,7 @@ export default function Home() {
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      setSourceFile(file);
       const reader = new FileReader();
       reader.onload = (e) => {
         const text = e.target?.result as string;
@@ -44,6 +47,20 @@ export default function Home() {
       };
       reader.readAsText(file);
     }
+  };
+
+  const handleSave = () => {
+    // TODO: Implement save logic
+    // This function will receive:
+    // - sourceFile: File | null (the uploaded G-code file)
+    // - minTempText: string (minimum temperature)
+    // - maxTempText: string (maximum temperature) 
+    // - commands: Command[] (all parsed commands)
+    console.log('Save button clicked');
+    console.log('Source file:', sourceFile);
+    console.log('Min temp:', minTempText);
+    console.log('Max temp:', maxTempText);
+    console.log('Commands:', commands);
   };
 
   useEffect(() => {
@@ -115,6 +132,12 @@ export default function Home() {
               className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-600 file:text-white hover:file:bg-blue-700"
             />
           </div>
+          <button
+            onClick={handleSave}
+            className="w-full mt-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-900"
+          >
+            Save
+          </button>
         </div>
         <div className="space-y-2">
           <div className="flex items-center space-x-3">
@@ -172,6 +195,29 @@ export default function Home() {
               className="h-10 w-20 rounded cursor-pointer"
             />
             <span className="text-sm text-gray-400">{maxColor}</span>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <label htmlFor="darkTempDeviation" className="block text-sm font-medium text-gray-300">
+            Dark Temperature Deviation
+          </label>
+          <div className="flex items-center space-x-3">
+            <input
+              type="range"
+              id="darkTempDeviation"
+              min="0"
+              max="100"
+              step="5"
+              value={darkTempDeviation}
+              onChange={(e) => setDarkTempDeviation(parseFloat(e.target.value))}
+              className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-gray-700 accent-blue-500"
+            />
+            <input
+              type="number"
+              value={darkTempDeviation}
+              onChange={(e) => setDarkTempDeviation(parseFloat(e.target.value))}
+              className="w-20 p-1 text-center bg-gray-700 border border-gray-600 rounded text-sm"
+            />
           </div>
         </div>
         <div className="space-y-2">
@@ -339,9 +385,12 @@ export default function Home() {
       <div className="w-2/3 h-full">
         <GCodeViewer 
           commands={filteredCommands} 
-          colorizerType="layer"
+          tempGeneratorType="layer"
           minColor={minColor} 
           maxColor={maxColor} 
+          minTempText={minTempText}
+          maxTempText={maxTempText}
+          darkTempDeviation={darkTempDeviation}
           lightNominalWidth={lightNominalWidth}
           lightWidthStandardDeviation={lightWidthStandardDeviation}
           darkNominalWidth={darkNominalWidth}
