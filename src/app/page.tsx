@@ -20,6 +20,10 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [minColor, setMinColor] = useState('#F6C488'); // Default tan color
   const [maxColor, setMaxColor] = useState('#7D3D16'); // Default tan color
+  const [minTempText, setMinTempText] = useState('170'); // Default min temp text
+  const [maxTempText, setMaxTempText] = useState('250'); // Default max temp text
+  const [removeBambuProme, setRemoveBambuProme] = useState(true); // Default to checked
+  const [filteredCommands, setFilteredCommands] = useState<Command[]>([]); // Filtered commands for display
   const [lightNominalWidth, setLightNominalWidth] = useState(10); // Default light nominal width
   const [lightWidthStandardDeviation, setLightWidthStandardDeviation] = useState(3); // Default light width standard deviation
   const [darkNominalWidth, setDarkNominalWidth] = useState(1); // Default dark nominal width
@@ -27,6 +31,20 @@ export default function Home() {
   const [transitionNominalWidth, setTransitionNominalWidth] = useState(2); // Default transition nominal width
   const [transitionStandardDeviation, setTransitionStandardDeviation] = useState(0.5); // Default transition standard deviation
   const [seed, setSeed] = useState(0); // Default seed value
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target?.result as string;
+        const newCommands = CommandParser({ gcode: text });
+        setCommands(newCommands);
+        setError(null);
+      };
+      reader.readAsText(file);
+    }
+  };
 
   useEffect(() => {
     const fetchGCode = async () => {
@@ -50,7 +68,22 @@ export default function Home() {
     fetchGCode();
   }, []);
 
-
+  // Filter commands based on removeBambuProme setting
+  useEffect(() => {
+    if (removeBambuProme) {
+      // Filter out Bambu purge lines (typically start with "; CP TOOLCHANGE")
+      const filtered = commands.filter(command => {
+        if (command.toolPath && command.toolPath.isExtrusion && command.toolPath.start.y > 11) {
+          return true;
+        }
+        return false;
+      });
+      setFilteredCommands(filtered);
+    } else {
+      // Show all commands when checkbox is unchecked
+      setFilteredCommands(commands);
+    }
+  }, [commands, removeBambuProme]);
 
   if (error) {
     return (
@@ -70,10 +103,45 @@ export default function Home() {
     <main className="flex h-screen w-full bg-gray-900 text-white">
       <div className="w-1/3 p-6 space-y-6">
         <div className="space-y-2">
-          <label htmlFor="minColor" className="block text-sm font-medium text-gray-300">
-            Minimum Temperature Color
+          <label htmlFor="gcodeFile" className="block text-sm font-medium text-gray-300">
+            Load G-Code File
           </label>
           <div className="flex items-center space-x-3">
+            <input
+              type="file"
+              id="gcodeFile"
+              accept=".gcode,.gco,.g"
+              onChange={handleFileUpload}
+              className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-600 file:text-white hover:file:bg-blue-700"
+            />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center space-x-3">
+            <input
+              type="checkbox"
+              id="removeBambuProme"
+              checked={removeBambuProme}
+              onChange={(e) => setRemoveBambuProme(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-blue-500 focus:ring-offset-gray-800"
+            />
+            <label htmlFor="removeBambuProme" className="text-sm font-medium text-gray-300">
+              Remove Bambu prome line from display (will still print prime line)
+            </label>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <label htmlFor="minColor" className="block text-sm font-medium text-gray-300">
+            Minimum Temperature & Color
+          </label>
+          <div className="flex items-center space-x-3">
+            <input
+              type="text"
+              value={minTempText}
+              onChange={(e) => setMinTempText(e.target.value)}
+              className="w-20 p-1 text-center bg-gray-700 border border-gray-600 rounded text-sm"
+              placeholder="170"
+            />
             <input
               type="color"
               id="minColor"
@@ -86,9 +154,16 @@ export default function Home() {
         </div>
         <div className="space-y-2">
           <label htmlFor="maxColor" className="block text-sm font-medium text-gray-300">
-            Maximum Temperature Color
+            Maximum Temperature & Color
           </label>
           <div className="flex items-center space-x-3">
+            <input
+              type="text"
+              value={maxTempText}
+              onChange={(e) => setMaxTempText(e.target.value)}
+              className="w-20 p-1 text-center bg-gray-700 border border-gray-600 rounded text-sm"
+              placeholder="250"
+            />
             <input
               type="color"
               id="maxColor"
@@ -263,7 +338,7 @@ export default function Home() {
       </div>
       <div className="w-2/3 h-full">
         <GCodeViewer 
-          commands={commands} 
+          commands={filteredCommands} 
           colorizerType="layer"
           minColor={minColor} 
           maxColor={maxColor} 
