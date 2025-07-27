@@ -11,19 +11,19 @@ export class RandomLayerBandTempGenerator extends BaseTempGenerator {
     const lightWidthStandardDeviation = input.lightWidthStandardDeviation || 3;
     const darkNominalWidth = input.darkNominalWidth || 1;
     const darkWidthStandardDeviation = input.darkWidthStandardDeviation || 1;
-    const darkTempDeviation = input.darkTempDeviation !== undefined ? input.darkTempDeviation : 50; // Use input value or default to 50
+    const darkTempDeviation = input.darkTempDeviation !== undefined ? input.darkTempDeviation : 50;
     const transitionNominalWidth = input.transitionNominalWidth || 2;
     const transitionStandardDeviation = input.transitionStandardDeviation || 0.5;
     const lightTemp = input.minTemp || 170;
     const darkNominalTemp = input.nominalDarkTemp || 250;
     const maxDarkTemp = input.maxDarkTemp || 300;
 
-    const seed = input.seed || 2; // Use the seed from input
+    const seed = input.seed || 2;
     const rng = new SeedableRandom(seed);
 
     const maxHeight = input.commands.reduce((max, command) => Math.max(max, command.toolPath?.start.z || 0), 0);
     var heights: [number, number, number, number, number][] = [];
-    // band start z, band end z, band start temp, band end temp, band start color
+    // band start z, band end z, band start temp, band temp, band end color
     heights.push([0, rng.nextNormalClamped(lightNominalWidth, lightWidthStandardDeviation, 0, 1e6), 0, lightTemp, 0]);
     while (heights[heights.length - 1][0] < maxHeight) {
       // Light to dark transition
@@ -61,7 +61,7 @@ export class RandomLayerBandTempGenerator extends BaseTempGenerator {
     };
 
     input.commands.forEach((command) => {
-      if (command.toolPath && command.toolPath.start.z > 0) {
+      if (command.toolPath && command.toolPath.isExtrusion && command.toolPath.start.z > 0) {
         for (const [index, height] of heights.entries()) {
           if (command.toolPath.start.z >= height[0] && command.toolPath.start.z < height[1]) {
             switch (index % 4) {

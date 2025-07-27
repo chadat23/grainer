@@ -10,7 +10,12 @@ export interface ToolPath {
   isExtrusion: boolean;
 }
 
+//type SetTempTypes = "M104" | "M109";
+const SetTempTypes = ["M104", "M109"] as const;
+type SetTempType = (typeof SetTempTypes)[number];
+
 export interface SetTemp {
+  type: SetTempType;
   s: number; // Temperature value
 }
 

@@ -257,6 +257,9 @@ export default function GCodeViewer({
 
     // Create box geometry for each path and merge into single buffer
     commands.forEach((command, pathIndex) => {
+      if (command.setTemp) {
+        console.log("command line number: ", command.lineNumber, "temp: ", command.setTemp.s);
+      }
       if (command.toolPath && command.toolPath.isExtrusion) {
         const start = new THREE.Vector3(-command.toolPath.start.x + 128, command.toolPath.start.z, -command.toolPath.start.y + 128);
         const end = new THREE.Vector3(-command.toolPath.end.x + 128, command.toolPath.end.z, -command.toolPath.end.y + 128);
@@ -391,8 +394,6 @@ export default function GCodeViewer({
       seed
     });
     
-    console.log("lineTemps: ", lineTemps);
-
     // Convert hex colors to RGB for interpolation
     const minColorInt = parseInt(minColor.slice(1), 16);
     const maxColorInt = parseInt(maxColor.slice(1), 16);
@@ -408,12 +409,6 @@ export default function GCodeViewer({
     let colorIndex = 0;
     const minTemp = parseInt(minTempText);
     const maxTemp = parseInt(maxDarkTempText);
-
-    lineTemps.forEach((temp, lineNumber) => {
-      if (temp !== 170) {
-        console.log("lineNumber: ", lineNumber, "temp: ", temp);
-      }
-    });
 
     // Update colors only for rendered paths
     renderedPaths.forEach((pathIndex: number) => {
@@ -444,8 +439,6 @@ export default function GCodeViewer({
         }
       }
     });
-
-    console.log("lineTemps: ", lineTemps);
 
     console.log(`Updated colors for ${renderedPaths.length} paths, total color vertices: ${colorIndex}`);
 

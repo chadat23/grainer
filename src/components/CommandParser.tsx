@@ -20,15 +20,18 @@ export default function CommandParser({ gcode }: { gcode: string }): Command[] {
                 commands.push({
                     lineNumber: command.lineNumber,
                     setTemp: {
-                        s: command.parameters.s
+                        s: command.parameters.s,
+                        type: command.command
                     }
                 });
             }
         }
+
         if (isMovementCommand(command)) {
             const nextPoint = makePoint(lastPoint, command);
             var e = false;
-            if (command.parameters.e !== undefined && typeof command.parameters.e === 'number' && command.parameters.e > 0) {
+            if (command.parameters.e !== undefined && typeof command.parameters.e === 'number' && command.parameters.e > 0 && 
+                !(command.parameters.x === undefined && command.parameters.y === undefined && command.parameters.z === undefined)) {
                 e = true;
             }
             if (nextPoint.length === 1) {

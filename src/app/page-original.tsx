@@ -86,66 +86,26 @@ export default function Home() {
       return;
     }
 
-    var lastM109Line = 0;
-    var lastM109Index = 0;
-    commands.forEach(command => {
-      if (command.setTemp?.type === "M109") {
-        lastM109Line = command.lineNumber;
-        lastM109Index += 1;
-      }
-    });
-    console.log("lastM109Line: ", lastM109Line);
-
-    var temps = Array.from(lineTemps.keys());
-    temps.sort((a, b) => a - b);
-    var startTemp = lineTemps.get(temps[0]);
-    var temp = startTemp;
-
-    console.log("lineTemps: abcdef", lineTemps);
-
-    var tempAdditions = [];
-    var lastExtrusionLine = 0;
-    for (let i = 0; i < commands.length; i++) {
-      const lineNumber = commands[i].lineNumber;
-      const lineTemp = lineTemps.get(lineNumber);
-      if (lineTemp !== undefined && lineTemp !== temp) {
-        tempAdditions.push({line: lastExtrusionLine, temp: temp});
-        temp = lineTemp;
-      }
-
-      if (commands[i].toolPath?.isExtrusion) {
-        lastExtrusionLine = lineNumber; // -1 because line numbers are 1-based (this may not be right)
-      }
-    }
-
-    console.log("tempAdditions: ", tempAdditions);
-
-    // TODO: what comes next is broken, need to fix it
-    // TODO: can all my maps be replaced with arrays?
-
-
     // Read the source file and save it line by line
     const reader = new FileReader();
     reader.onload = (e) => {
       const gcodeText = e.target?.result as string;
       const lines = gcodeText.split('\n');
 
+      //var tempSetLine = 0;
+      //for (let i = 0; i < commands.length; i++) {
+      //  if (commands[i].setTemp !== undefined) {
+      //    tempSetLine = i;
+      //    console.log("tempSetLine: ", tempSetLine);
+      //  }
+      //}
+
+      for (let i = 0; i < lines.length; i++) {
+      
       // Create the output content line by line
       let outputContent = '';
-      let lineOffset = 0;
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
-        
-        if (i + lineOffset === lastM109Line - 1) {
-          outputContent += `; ${lines[i + lineOffset]} ; this was the oritional set temp\n`;
-          lineOffset++;
-          continue;
-        }
-
-        // TODO: before here pre calculate lines where temps are adjusted
-
-
-
         const lineNumber = i + 1; // 1-based line numbers
         
         // Check if we need to add a temperature command for this line
@@ -186,7 +146,6 @@ export default function Home() {
   };
 
   useEffect(() => {
-    console.log('Home component useEffect called');
     const fetchGCode = async () => {
       try {
         const response = await fetch('/api/gcode');
@@ -197,7 +156,6 @@ export default function Home() {
         }
         
         const text = await response.text();
-        console.log('G-code loaded, length:', text.length);
         const newCommands = CommandParser({ gcode: text });
         setCommands(newCommands);
         
@@ -222,16 +180,9 @@ export default function Home() {
     if (removeBambuProme) {
       // Filter out Bambu purge lines (typically start with "; CP TOOLCHANGE")
       const filtered = commands.filter(command => {
-        if (!command.toolPath) {
+        if (command.toolPath && command.toolPath.isExtrusion && command.toolPath.start.y > 11) {
           return true;
         }
-        if (!command.toolPath.isExtrusion) {
-          return true;
-        }
-        if (command.toolPath.start.y > 11) {
-          return true;
-        }
-        console.log("bambu purge line: ", command.lineNumber, "tool path: ", command.toolPath.start.y, "is extrusion: ", command.toolPath.isExtrusion);
         return false;
       });
       setFilteredCommands(filtered);
