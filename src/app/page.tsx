@@ -94,16 +94,13 @@ export default function Home() {
         lastM109Index += 1;
       }
     });
-    console.log("lastM109Line: ", lastM109Line);
 
     var temps = Array.from(lineTemps.keys());
     temps.sort((a, b) => a - b);
-    var startTemp = lineTemps.get(temps[0]);
+    var startTemp = lineTemps.get(temps[0]) || 0;
     var temp = startTemp;
 
-    console.log("lineTemps: abcdef", lineTemps);
-
-    var tempAdditions = [];
+    var tempAdditions: {line: number, temp: number}[] = [];
     var lastExtrusionLine = 0;
     for (let i = 0; i < commands.length; i++) {
       const lineNumber = commands[i].lineNumber;
@@ -118,11 +115,9 @@ export default function Home() {
       }
     }
 
-    console.log("tempAdditions: ", tempAdditions);
-
-    // TODO: what comes next is broken, need to fix it
-    // TODO: can all my maps be replaced with arrays?
-
+    var tempLine = tempAdditions[0]?.line;
+    var tempTemp = tempAdditions[0]?.temp;
+    var tempIndex = 1;
 
     // Read the source file and save it line by line
     const reader = new FileReader();
@@ -135,28 +130,23 @@ export default function Home() {
       let lineOffset = 0;
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
+        const lineNumber = i + 1; // 1-based line numbers
         
-        if (i + lineOffset === lastM109Line - 1) {
-          outputContent += `; ${lines[i + lineOffset]} ; this was the oritional set temp\n`;
+        if (lineNumber === lastM109Line) {
+          outputContent += `; ${lines[lineNumber - 1]} ; this was the oritional set temp\n`;
+          outputContent += `M109 S${Math.round(startTemp)} ; this line was added to set initial temp\n`;
           lineOffset++;
           continue;
         }
 
-        // TODO: before here pre calculate lines where temps are adjusted
-
-
-
-        const lineNumber = i + 1; // 1-based line numbers
-        
-        // Check if we need to add a temperature command for this line
-        const temperature = lineTemps.get(lineNumber);
-        if (temperature !== undefined) {
-          // Add temperature command before this line
-          outputContent += `M104 S${Math.round(temperature)}\n`;
-        }
-        
-        // Copy the original line
         outputContent += line + '\n';
+
+        if (lineNumber === tempLine) {
+          outputContent += `M104 S${Math.round(tempTemp)} ; this line was added to update the temp\n`;
+          tempLine = tempAdditions[tempIndex]?.line;
+          tempTemp = tempAdditions[tempIndex]?.temp;
+          tempIndex++;
+        }
       }
       
       // Create a blob with the G-code content

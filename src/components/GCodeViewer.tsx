@@ -257,9 +257,6 @@ export default function GCodeViewer({
 
     // Create box geometry for each path and merge into single buffer
     commands.forEach((command, pathIndex) => {
-      if (command.setTemp) {
-        console.log("command line number: ", command.lineNumber, "temp: ", command.setTemp.s);
-      }
       if (command.toolPath && command.toolPath.isExtrusion) {
         const start = new THREE.Vector3(-command.toolPath.start.x + 128, command.toolPath.start.z, -command.toolPath.start.y + 128);
         const end = new THREE.Vector3(-command.toolPath.end.x + 128, command.toolPath.end.z, -command.toolPath.end.y + 128);
