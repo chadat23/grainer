@@ -221,7 +221,6 @@ export default function Home() {
         if (command.toolPath.start.y > 11) {
           return true;
         }
-        console.log("bambu purge line: ", command.lineNumber, "tool path: ", command.toolPath.start.y, "is extrusion: ", command.toolPath.isExtrusion);
         return false;
       });
       setFilteredCommands(filtered);
